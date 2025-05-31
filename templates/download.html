@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Download Video</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <h1>📥 Download Videos From Anywhere</h1>
+    <form action="/download" method="POST">
+        <input type="text" name="video_url" placeholder="Paste video link here...">
+        <button type="submit">Download ⬇️</button>
+    </form>
+    
+    {% if link %}
+        <h3>Your Download Link:</h3>
+        <a href="{{ link }}" target="_blank">Click to Download</a>
+    {% endif %}
+</body>
+</html
