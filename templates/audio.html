@@ -14,6 +14,23 @@
                 <source src="{{ audio.audio_url }}" type="audio/mp3">
                 Your browser does not support the audio element.
             </audio>
+
+            <div class="controls">
+                <label>Playback Speed:</label>
+                <select id="playbackSpeed">
+                    <option value="0.5">0.5x (Slow)</option>
+                    <option value="1" selected>1x (Normal)</option>
+                    <option value="1.5">1.5x (Fast)</option>
+                    <option value="2">2x (Very Fast)</option>
+                </select>
+                
+                <label>Sound Effect:</label>
+                <select id="soundEffect">
+                    <option value="normal" selected>Normal</option>
+                    <option value="reverb">Reverb</option>
+                    <option value="echo">Echo</option>
+                </select>
+            </div>
         {% else %}
             <p style="color: red;">No audio found.</p>
         {% endif %}
