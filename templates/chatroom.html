@@ -1,64 +1,124 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Chatroom | StreamMe</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
-</head>
-<body>
-    <h1>🎙️ Live Chatroom</h1>
+{% extends "base.html" %}
 
-    <!-- Set nickname -->
-    <label for="nickname">Set Your Nickname:</label>
+{% block title %}Chatroom | StreamMe{% endblock %}
+
+{% block content %}
+<h1>🎙️ Live Chatroom</h1>
+
+<div class="chat-controls">
+    <label>Set Your Nickname:</label>
     <input type="text" id="nickname" placeholder="Enter nickname" required>
     <button onclick="setNickname()">Join Chat</button>
+</div>
 
-    <!-- Chat messages -->
-    <div id="chat-box" style="border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-top: 20px;"></div>
+<div id="chat-box" style="height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;"></div>
 
-    <!-- Message input -->
-    <input type="text" id="message" placeholder="Type a message..." disabled>
-    <button onclick="sendMessage()" id="send-btn" disabled>Send</button>
+<div class="message-controls">
+    <input type="text" id="message" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+</div>
 
-    <script>
-        const socket = io();
-        let nickname = "";
+<div class="upload-controls">
+    <input type="file" id="imageInput" accept="image/*">
+    <button onclick="sendImage()">📷 Send Image</button>
+</div>
 
-        function setNickname() {
-            const input = document.getElementById("nickname");
-            nickname = input.value.trim();
-            if (nickname) {
-                socket.emit("join", nickname);
-                input.disabled = true;
-                document.getElementById("message").disabled = false;
-                document.getElementById("send-btn").disabled = false;
-            }
+<div class="voice-controls">
+    <button onclick="startRecording()">🎙️ Start Recording</button>
+    <button onclick="stopRecording()">⏹️ Stop & Send</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+<script>
+    const socket = io();
+    let nickname = "";
+    let mediaRecorder;
+    let audioChunks = [];
+
+    function setNickname() {
+        nickname = document.getElementById("nickname").value.trim();
+        if (nickname) {
+            socket.emit("join", nickname);
+            document.getElementById("nickname").disabled = true;
         }
+    }
 
-        socket.on("message", function(data) {
-            const chatBox = document.getElementById("chat-box");
-            const msg = document.createElement("p");
-            msg.innerHTML = `<strong>${data.nickname}:</strong> ${data.text}`;
-            chatBox.appendChild(msg);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        });
-
-        function sendMessage() {
-            const messageInput = document.getElementById("message");
-            const message = messageInput.value.trim();
-            if (message) {
-                socket.emit("message", { nickname: nickname, text: message });
-                messageInput.value = "";
-            }
+    function sendMessage() {
+        let message = document.getElementById("message").value.trim();
+        if (message) {
+            socket.emit("message", { nickname: nickname, text: message });
+            document.getElementById("message").value = "";
         }
+    }
 
-        // Allow Enter key to send message
-        document.getElementById("message").addEventListener("keyup", function(event) {
-            if (event.key === "Enter") {
-                sendMessage();
-            }
-        });
-    </script>
-</body>
-</html>
+    function sendImage() {
+        const imageInput = document.getElementById("imageInput");
+        const file = imageInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                socket.emit("image", { nickname: nickname, image: e.target.result });
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function startRecording() {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+                mediaRecorder.start();
+            });
+    }
+
+    function stopRecording() {
+        if (mediaRecorder) {
+            mediaRecorder.stop();
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    socket.emit("voice", { nickname: nickname, audio: e.target.result });
+                };
+                reader.readAsDataURL(audioBlob);
+            };
+        }
+    }
+
+    socket.on("message", function(data) {
+        const chatBox = document.getElementById("chat-box");
+        const msg = document.createElement("p");
+        msg.innerHTML = `<strong>${data.nickname}:</strong> ${data.text}`;
+        chatBox.appendChild(msg);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    socket.on("image", function(data) {
+        const chatBox = document.getElementById("chat-box");
+        const img = document.createElement("img");
+        img.src = data.image;
+        img.style.maxWidth = "200px";
+        const msg = document.createElement("p");
+        msg.innerHTML = `<strong>${data.nickname}:</strong><br>`;
+        msg.appendChild(img);
+        chatBox.appendChild(msg);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    socket.on("voice", function(data) {
+        const chatBox = document.getElementById("chat-box");
+        const audio = document.createElement("audio");
+        audio.src = data.audio;
+        audio.controls = true;
+        const msg = document.createElement("p");
+        msg.innerHTML = `<strong>${data.nickname}:</strong><br>`;
+        msg.appendChild(audio);
+        chatBox.appendChild(msg);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+</script>
+{% endblock %
