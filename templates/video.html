@@ -1,32 +1,100 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Video Player | StreamMe</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
-</head>
-<body>
-    <div class="video-container">
-        <h1>🎬 Now Playing</h1>
-        {% if video %}
-            <h2>{{ video.title }}</h2>
-            <video id="videoPlayer" controls>
-                <source src="{{ video.video_url }}" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
+{% extends "base.html" %}
+{% block title %}Play Video{% endblock %}
 
-            <div class="controls">
-                <label>Playback Speed:</label>
-                <select id="videoSpeed">
-                    <option value="0.5">0.5x (Slow)</option>
-                    <option value="1" selected>1x (Normal)</option>
-                    <option value="1.5">1.5x (Fast)</option>
-                    <option value="2">2x (Very Fast)</option>
-                </select>
-            </div>
-        {% else %}
-            <p style="color: red;">No video found.</p>
-        {% endif %}
-    </div>
-</body>
-</html>
+{% block content %}
+<div class="player-container">
+  <h2>Now Playing: {{ video.title }}</h2>
+
+  <video id="videoPlayer" controls preload="metadata" class="media-player" poster="{{ video.thumbnail }}">
+    <source src="{{ video.url }}" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+
+  <div class="controls">
+    <label for="playbackSpeed">Playback Speed:</label>
+    <select id="playbackSpeed">
+      <option value="0.5">0.5x Slow</option>
+      <option value="1" selected>1x Normal</option>
+      <option value="1.5">1.5x Speedup</option>
+      <option value="2">2x Speedup</option>
+    </select>
+
+    <!-- Effects can be extended with Web Audio API (optional) -->
+    <button id="reverbBtn">Toggle Reverb</button>
+  </div>
+</div>
+
+<script>
+  const video = document.getElementById("videoPlayer");
+  const speedSelector = document.getElementById("playbackSpeed");
+  speedSelector.addEventListener("change", () => {
+    video.playbackRate = parseFloat(speedSelector.value);
+  });
+
+  // Simple Reverb toggle example (can be expanded)
+  let reverbOn = false;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioContext();
+  const source = audioCtx.createMediaElementSource(video);
+  const convolver = audioCtx.createConvolver();
+
+  // You'd have to load an impulse response for real reverb,
+  // Here just bypass or connect directly for demo.
+  document.getElementById("reverbBtn").onclick = () => {
+    if (!reverbOn) {
+      source.connect(convolver);
+      convolver.connect(audioCtx.destination);
+      reverbOn = true;
+      alert("Reverb ON (demo)");
+    } else {
+      source.disconnect();
+      source.connect(audioCtx.destination);
+      reverbOn = false;
+      alert("Reverb OFF");
+    }
+  };
+</script>
+
+<style>
+.player-container {
+  background: linear-gradient(135deg, #000000, #1a1a3d, #331a66, #004d40);
+  padding: 20px;
+  border-radius: 10px;
+  color: #d1d1ff;
+  max-width: 720px;
+  margin: 30px auto;
+  box-shadow: 0 0 15px #6a0dad;
+  text-align: center;
+}
+
+.media-player {
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 0 15px #00ffcc;
+}
+
+.controls {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  align-items: center;
+}
+
+select, button {
+  background-color: #220066;
+  color: #aaffaa;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+select:hover, button:hover {
+  background-color: #4400cc;
+  color: #00ff99;
+}
+</style>
+{% endblock %}
