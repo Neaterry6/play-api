@@ -1,8 +1,10 @@
 # ✅ Core Flask Framework
 Flask==2.2.2
 Flask-SQLAlchemy==3.0.1  # ✅ Database support
-Flask-SocketIO==5.6.0  # ✅ Enables real-time chatroom
-eventlet==0.33.0  # ✅ Required for SocketIO async functionality
+
+# ✅ Real-Time Chat Dependencies (FIXED)
+Flask-SocketIO==5.6.0  # ✅ Enables live chat functionality
+eventlet==0.33.0  # ✅ Required for WebSockets (Async Chat)
 
 # ✅ Request Handling & API Calls
 requests==2.31.0
