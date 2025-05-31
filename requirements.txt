@@ -1,10 +1,26 @@
+# ✅ Core Flask Framework
 Flask==2.2.2
-Flask-SQLAlchemy==3.0.1
-requests==2.31.0
-gunicorn==20.1.0
-python-dotenv==1.0.0
-psycopg2==2.9.6  # ✅ Required for PostgreSQL
-yt-dlp==2024.03.10  # ✅ Video & audio downloader
-werkzeug==2.0.3  # ✅ Fixed Flask import issues
-flask-socketio==5.6.0  # ✅ Enables real-time chatroom
+Flask-SQLAlchemy==3.0.1  # ✅ Database support
+Flask-SocketIO==5.6.0  # ✅ Enables real-time chatroom
 eventlet==0.33.0  # ✅ Required for SocketIO async functionality
+
+# ✅ Request Handling & API Calls
+requests==2.31.0
+
+# ✅ Deployment Essentials
+gunicorn==20.1.0  # ✅ Recommended for production
+
+# ✅ Environment Variables Support
+python-dotenv==1.0.0  # ✅ Loads .env variables
+
+# ✅ Database Support (PostgreSQL)
+psycopg2==2.9.6  # ✅ PostgreSQL client
+
+# ✅ Media Streaming & Download Support
+yt-dlp==2024.03.10  # ✅ Video/audio downloader
+
+# ✅ Fix Werkzeug Compatibility for Flask
+werkzeug==2.0.3  # ✅ Prevents `url_quote` import error
+
+# ✅ Frontend Enhancements (CSS Animation Support)
+flask-assets==2.0  # ✅ Optimizes static files (CSS, JS)
