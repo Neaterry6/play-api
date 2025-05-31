@@ -1,61 +1,104 @@
+import os
+from yt_dlp import YoutubeDL
+from youtube_search import YoutubeSearch
 import requests
-import yt_dlp
-from urllib.parse import quote as url_quote  # ✅ Safe query encoding
+from bs4 import BeautifulSoup
 
-COOKIES_PATH = "cookies.txt"
-SEARCH_URL = "https://www.youtube.com/results?search_query="
-LYRICS_API = "https://api.lyrics.ovh/v1/"
+# YouTube Search using youtube_search package
+def search_songs(query, max_results=10):
+    results = YoutubeSearch(query, max_results=max_results).to_dict()
+    songs = []
+    for item in results:
+        songs.append({
+            "title": item.get("title"),
+            "url_suffix": item.get("url_suffix"),
+            "duration": item.get("duration"),
+            "thumbnails": item.get("thumbnails"),
+            "channel": item.get("channel")
+        })
+    return songs
 
-# ✅ Load Netscape cookies properly
-def load_cookies():
-    cookies = {}
-    try:
-        with open(COOKIES_PATH, "r") as file:
-            for line in file:
-                parts = line.strip().split("\t")
-                if len(parts) >= 7:
-                    cookies[parts[5]] = parts[6]
-    except FileNotFoundError:
-        print("⚠️ Cookies file missing! Some features may be limited.")
-    return cookies
-
-# 🔍 Improved YouTube search function
-def search_songs(query):
-    cookies = load_cookies()
-    encoded_query = url_quote(query)
-    response = requests.get(SEARCH_URL + encoded_query, cookies=cookies).text
-    results = []  # TODO: Parse actual search results from YouTube
-    return results if results else [{"title": "No results found", "video_url": "#"}]
-
-# 🎥 Fetch video metadata (enhanced)
+# Get video info + streaming url
 def get_video(query):
-    ydl_opts = {"quiet": True, "format": "best"}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(f"ytsearch:{query}", download=False)
-        if "entries" in info:
-            video = info["entries"][0]  # First result
-            return {"title": video["title"], "video_url": video["webpage_url"]}
-    return {"title": "No video found", "video_url": "#"}
+    ydl_opts = {
+        "quiet": True,
+        "skip_download": True,
+        "format": "bestvideo+bestaudio/best",
+    }
+    with YoutubeDL(ydl_opts) as ydl:
+        try:
+            info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
+            return {
+                "title": info.get("title"),
+                "url": info.get("webpage_url"),
+                "thumbnail": info.get("thumbnail"),
+                "duration": info.get("duration"),
+                "formats": info.get("formats")
+            }
+        except Exception as e:
+            print(f"Error fetching video info: {e}")
+            return None
 
-# 🔊 Fetch audio metadata
+# Get audio info + streaming url
 def get_audio(query):
-    return get_video(query)  # Audio can be extracted from video
+    ydl_opts = {
+        "quiet": True,
+        "skip_download": True,
+        "format": "bestaudio/best",
+    }
+    with YoutubeDL(ydl_opts) as ydl:
+        try:
+            info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
+            return {
+                "title": info.get("title"),
+                "url": info.get("webpage_url"),
+                "thumbnail": info.get("thumbnail"),
+                "duration": info.get("duration"),
+                "audio_url": info.get("url"),
+            }
+        except Exception as e:
+            print(f"Error fetching audio info: {e}")
+            return None
 
-# 📜 Lyrics fetching (fixed)
+# Get lyrics by scraping lyrics.com (as example)
 def get_lyrics(query):
     try:
-        artist, song = query.split(" - ")
-        response = requests.get(f"{LYRICS_API}{artist}/{song}")
-        return response.json().get("lyrics", "Lyrics not found.")
-    except ValueError:
-        return "Invalid format. Use 'Artist - Song' format."
+        # Replace spaces with + for URL search
+        search_url = f"https://www.lyrics.com/serp.php?st={query.replace(' ', '+')}&qtype=2"
+        res = requests.get(search_url)
+        soup = BeautifulSoup(res.text, "html.parser")
+        # Find first lyrics link
+        link = soup.select_one("td.tal.qx a")
+        if link:
+            lyrics_page = requests.get(f"https://www.lyrics.com{link['href']}")
+            lyrics_soup = BeautifulSoup(lyrics_page.text, "html.parser")
+            lyrics_div = lyrics_soup.find("pre", id="lyric-body-text")
+            if lyrics_div:
+                return lyrics_div.get_text()
+        return "Lyrics not found."
+    except Exception as e:
+        print(f"Error fetching lyrics: {e}")
+        return "Lyrics not found."
 
-# ⬇️ Universal video downloader (uses yt-dlp)
-def download_video(video_url):
-    ydl_opts = {"quiet": True, "format": "best", "outtmpl": "downloads/%(title)s.%(ext)s"}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
-            info = ydl.extract_info(video_url, download=True)
-            return info["url"]  # Return the direct video link
-        except Exception as e:
-            return f"❌ Error downloading video: {str(e)}"
+# Download video from URL (no watermark for TikTok/Facebook/Instagram using yt-dlp)
+def download_video(video_url, download_path="downloads"):
+    os.makedirs(download_path, exist_ok=True)
+    ydl_opts = {
+        "outtmpl": f"{download_path}/%(title)s.%(ext)s",
+        "format": "best",
+        "quiet": True,
+        "noplaylist": True,
+        # Remove watermark for TikTok and others if possible:
+        "postprocessors": [{
+            "key": "FFmpegVideoConvertor",
+            "preferedformat": "mp4",
+        }],
+    }
+    try:
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url)
+            filename = ydl.prepare_filename(info)
+            return filename  # return path to downloaded file
+    except Exception as e:
+        print(f"Error downloading video: {e}")
+        return None
