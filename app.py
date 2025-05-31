@@ -3,7 +3,7 @@ import requests
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 from dotenv import load_dotenv
 import os
-from urllib.parse import quote as url_quote  # ✅ Fixed Werkzeug issue
+from urllib.parse import quote as url_quote  # ✅ Fully Fixed Werkzeug Issue
 
 # Load environment variables
 load_dotenv()
