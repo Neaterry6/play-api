@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Songs</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <h2>🔍 Search for a Song:</h2>
+    <form action="/search" method="POST">
+        <input type="text" name="query" placeholder="Enter song name...">
+        <button type="submit">Search</button>
+    </form>
+
+    {% if results %}
+        <h3>🎶 Choose a Song:</h3>
+        <ul>
+            {% for song in results %}
+                <li>
+                    <a href="/play/video?query={{ song.title }}">Play Video</a> |
+                    <a href="/play/audio?query={{ song.title }}">Play Audio</a> |
+                    <a href="/lyrics?query={{ song.title }}">Lyrics</a> |
+                    <a href="/download?video_url={{ song.video_url }}">Download</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</body>
+</html
