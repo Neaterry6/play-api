@@ -9,6 +9,18 @@ h1 {
     animation: glow 1s infinite alternate;
 }
 
+nav {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+nav a {
+    color: cyan;
+    margin: 5px;
+    text-decoration: none;
+}
+
 button {
     background: linear-gradient(45deg, blue, cyan);
     color: white;
@@ -21,4 +33,4 @@ button {
 @keyframes glow {
     from { text-shadow: 0 0 5px cyan; }
     to { text-shadow: 0 0 20px cyan, 0 0 30px blue; }
-          }
+}
