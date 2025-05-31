@@ -1,39 +1,108 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Audio Player | StreamMe</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
-</head>
-<body>
-    <div class="player-container">
-        <h1>🎵 Now Playing</h1>
-        {% if audio %}
-            <h2>{{ audio.title }}</h2>
-            <audio id="audioPlayer" controls>
-                <source src="{{ audio.audio_url }}" type="audio/mp3">
-                Your browser does not support the audio element.
-            </audio>
+{% extends "base.html" %}
+{% block title %}Play Audio{% endblock %}
 
-            <div class="controls">
-                <label>Playback Speed:</label>
-                <select id="playbackSpeed">
-                    <option value="0.5">0.5x (Slow)</option>
-                    <option value="1" selected>1x (Normal)</option>
-                    <option value="1.5">1.5x (Fast)</option>
-                    <option value="2">2x (Very Fast)</option>
-                </select>
-                
-                <label>Sound Effect:</label>
-                <select id="soundEffect">
-                    <option value="normal" selected>Normal</option>
-                    <option value="reverb">Reverb</option>
-                    <option value="echo">Echo</option>
-                </select>
-            </div>
-        {% else %}
-            <p style="color: red;">No audio found.</p>
-        {% endif %}
-    </div>
-</body>
-</html>
+{% block content %}
+<div class="player-container">
+  <h2>Now Playing: {{ audio.title }}</h2>
+
+  <audio id="audioPlayer" controls preload="metadata" class="media-player">
+    <source src="{{ audio.url }}" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+
+  <div class="controls">
+    <label for="playbackSpeed">Playback Speed:</label>
+    <select id="playbackSpeed">
+      <option value="0.5">0.5x Slow</option>
+      <option value="1" selected>1x Normal</option>
+      <option value="1.5">1.5x Speedup</option>
+      <option value="2">2x Speedup</option>
+    </select>
+
+    <button id="reverbBtn">Toggle Reverb</button>
+    <button id="slowBtn">Slow Motion</button>
+    <button id="speedUpBtn">Speed Up</button>
+  </div>
+</div>
+
+<script>
+  const audio = document.getElementById("audioPlayer");
+  const speedSelector = document.getElementById("playbackSpeed");
+
+  speedSelector.addEventListener("change", () => {
+    audio.playbackRate = parseFloat(speedSelector.value);
+  });
+
+  // Reverb effect toggle (simple demo)
+  let reverbOn = false;
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioContext();
+  const source = audioCtx.createMediaElementSource(audio);
+  const convolver = audioCtx.createConvolver();
+
+  document.getElementById("reverbBtn").onclick = () => {
+    if (!reverbOn) {
+      source.connect(convolver);
+      convolver.connect(audioCtx.destination);
+      reverbOn = true;
+      alert("Reverb ON (demo)");
+    } else {
+      source.disconnect();
+      source.connect(audioCtx.destination);
+      reverbOn = false;
+      alert("Reverb OFF");
+    }
+  };
+
+  document.getElementById("slowBtn").onclick = () => {
+    audio.playbackRate = 0.75;
+  };
+
+  document.getElementById("speedUpBtn").onclick = () => {
+    audio.playbackRate = 1.5;
+  };
+</script>
+
+<style>
+.player-container {
+  background: linear-gradient(135deg, #000000, #1a1a3d, #331a66, #004d40);
+  padding: 20px;
+  border-radius: 10px;
+  color: #d1d1ff;
+  max-width: 600px;
+  margin: 30px auto;
+  box-shadow: 0 0 15px #6a0dad;
+  text-align: center;
+}
+
+.media-player {
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: 0 0 15px #00ffcc;
+}
+
+.controls {
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  align-items: center;
+}
+
+select, button {
+  background-color: #220066;
+  color: #aaffaa;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+select:hover, button:hover {
+  background-color: #4400cc;
+  color: #00ff99;
+}
+</style>
+{% endblock %}
