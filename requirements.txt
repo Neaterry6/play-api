@@ -1,28 +1,9 @@
-# ✅ Core Flask Framework
-Flask==2.2.2
-Flask-SQLAlchemy==3.0.1  # ✅ Database support
-
-# ✅ Real-Time Chat Dependencies (FIXED)
-Flask-SocketIO==5.6.0  # ✅ Enables live chat functionality
-eventlet==0.33.0  # ✅ Required for WebSockets (Async Chat)
-
-# ✅ Request Handling & API Calls
+Flask==3.0.3
+Flask-SocketIO==5.3.6
+eventlet==0.36.1
 requests==2.31.0
-
-# ✅ Deployment Essentials
-gunicorn==20.1.0  # ✅ Recommended for production
-
-# ✅ Environment Variables Support
-python-dotenv==1.0.0  # ✅ Loads .env variables
-
-# ✅ Database Support (PostgreSQL)
-psycopg2==2.9.6  # ✅ PostgreSQL client
-
-# ✅ Media Streaming & Download Support
-yt-dlp==2024.03.10  # ✅ Video/audio downloader
-
-# ✅ Fix Werkzeug Compatibility for Flask
-werkzeug==2.0.3  # ✅ Prevents `url_quote` import error
-
-# ✅ Frontend Enhancements (CSS Animation Support)
-flask-assets==2.0  # ✅ Optimizes static files (CSS, JS)
+yt-dlp==2024.04.09
+python-dotenv==1.0.1
+SQLAlchemy==2.0.30
+Werkzeug==3.0.2
+gunicorn==22.0.0
