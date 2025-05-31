@@ -2,10 +2,16 @@
 <html>
 <head>
     <title>Lyrics</title>
-    <link rel="stylesheet" href="static/styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    <nav>
+        <a href="/">🏠 Home</a> |
+        <a href="/search">🔍 Search</a> |
+        <a href="/download">⬇️ Download</a>
+    </nav>
+
     <h1>🎶 Lyrics for {{ lyrics.title }} by {{ lyrics.artist }}</h1>
     <pre>{{ lyrics.lyrics }}</pre>
 </body>
-</html
+</html>
