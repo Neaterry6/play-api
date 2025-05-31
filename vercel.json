@@ -1,13 +1,20 @@
 {
   "version": 2,
   "builds": [
-    { "src": "app.py", "use": "vercel-python" }
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "app.py" }
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
   ],
   "env": {
     "DATABASE_URL": "postgresql://neondb_owner:npg_gX98vslEYZNe@ep-tiny-rain-a50izhgg.us-east-2.aws.neon.tech/neondb?sslmode=require",
     "SESSION_SECRET": "hiItkwH1TAEtUpT2/DVHAExrZGQqj0cuRItb6AqAhFEIGOaBIwzb7wXvxi/Ms9VKLZIsOFoNxz7/F69k9PZz0g==",
     "COOKIES_PATH": "cookies.txt"
   }
+}
