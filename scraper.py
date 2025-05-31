@@ -1,152 +1,147 @@
+import os
+from yt_dlp import YoutubeDL
 import requests
-from youtube_search import YoutubeSearch
-import yt_dlp
-import re
+
+COOKIES_FILE = 'cookies.txt'  # Your cookies file in Netscape format
+
+# YT-DLP options with cookie support
+YDL_OPTS = {
+    'format': 'best',
+    'outtmpl': 'downloads/%(title)s.%(ext)s',
+    'nocheckcertificate': True,
+    'quiet': True,
+    'no_warnings': True,
+    'cookiefile': COOKIES_FILE,
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }],
+}
 
 def search_songs(query, max_results=10):
-    """
-    Search YouTube for songs/videos matching the query.
-    Returns a list of dicts with title, url, duration, and thumbnail.
-    """
-    results = []
-    try:
-        yt_results = YoutubeSearch(query, max_results=max_results).to_dict()
-        for video in yt_results:
-            results.append({
-                "title": video.get("title"),
-                "url": f"https://www.youtube.com{video.get('url_suffix')}",
-                "duration": video.get("duration"),
-                "thumbnail": video.get("thumbnails")[0] if video.get("thumbnails") else None
-            })
-    except Exception as e:
-        print(f"Error searching songs: {e}")
-    return results
+    """Search YouTube for videos matching query and return basic info list"""
+    search_query = f"ytsearch{max_results}:{query}"
+    with YoutubeDL({'quiet': True, 'cookiefile': COOKIES_FILE}) as ydl:
+        try:
+            results = ydl.extract_info(search_query, download=False)
+            videos = results.get('entries', [])
+            return [{
+                'id': video.get('id'),
+                'title': video.get('title'),
+                'url': video.get('webpage_url'),
+                'duration': video.get('duration'),
+                'thumbnail': video.get('thumbnail')
+            } for video in videos]
+        except Exception as e:
+            print(f"Error searching songs: {e}")
+            return []
 
-def get_video(query):
-    """
-    Get video info for the first YouTube result for the query.
-    """
-    try:
-        results = search_songs(query, max_results=1)
-        if not results:
-            return None
-        url = results[0]['url']
-        info = get_video_info(url)
-        return info
-    except Exception as e:
-        print(f"Error getting video: {e}")
-        return None
-
-def get_audio(query):
-    """
-    Get audio info for the first YouTube result for the query.
-    """
-    try:
-        results = search_songs(query, max_results=1)
-        if not results:
-            return None
-        url = results[0]['url']
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-            'skip_download': True,
-            'forceurl': True,
-            'forcejson': True
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            audio_url = None
-            for f in info.get('formats', []):
-                if f.get('acodec') != 'none' and f.get('vcodec') == 'none':
-                    audio_url = f.get('url')
-                    break
-            return {
-                'title': info.get('title'),
-                'audio_url': audio_url,
-                'thumbnail': info.get('thumbnail')
-            }
-    except Exception as e:
-        print(f"Error getting audio: {e}")
-        return None
-
-def get_video_info(url):
-    """
-    Extract detailed video info using yt_dlp.
-    """
-    try:
-        ydl_opts = {
-            'format': 'best',
-            'quiet': True,
-            'no_warnings': True
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+def get_video(url):
+    """Get video info without downloading"""
+    with YoutubeDL({'quiet': True, 'cookiefile': COOKIES_FILE}) as ydl:
+        try:
             info = ydl.extract_info(url, download=False)
             return {
                 'title': info.get('title'),
-                'url': url,
+                'url': info.get('webpage_url'),
                 'duration': info.get('duration'),
                 'thumbnail': info.get('thumbnail'),
-                'description': info.get('description'),
-                'view_count': info.get('view_count'),
-                'upload_date': info.get('upload_date')
+                'formats': info.get('formats'),
             }
-    except Exception as e:
-        print(f"Error extracting video info: {e}")
-        return None
+        except Exception as e:
+            print(f"Error getting video info: {e}")
+            return None
 
-def get_lyrics(query):
+def get_audio(url):
+    """Get best audio info without downloading"""
+    opts = {
+        'format': 'bestaudio/best',
+        'quiet': True,
+        'cookiefile': COOKIES_FILE,
+    }
+    with YoutubeDL(opts) as ydl:
+        try:
+            info = ydl.extract_info(url, download=False)
+            # Choose best audio format info
+            audio_formats = [f for f in info.get('formats', []) if f.get('acodec') != 'none']
+            best_audio = max(audio_formats, key=lambda f: f.get('abr', 0)) if audio_formats else None
+            return {
+                'title': info.get('title'),
+                'url': info.get('webpage_url'),
+                'duration': info.get('duration'),
+                'thumbnail': info.get('thumbnail'),
+                'audio_url': best_audio.get('url') if best_audio else None,
+            }
+        except Exception as e:
+            print(f"Error getting audio info: {e}")
+            return None
+
+def download_video(url):
+    """Download video and return local path"""
+    os.makedirs('downloads', exist_ok=True)
+    ydl_opts = {
+        'format': 'bestvideo+bestaudio/best',
+        'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'cookiefile': COOKIES_FILE,
+        'nocheckcertificate': True,
+        'quiet': True,
+        'no_warnings': True,
+        # Add postprocessors here if you want to merge audio+video
+    }
+    with YoutubeDL(ydl_opts) as ydl:
+        try:
+            info = ydl.extract_info(url, download=True)
+            filepath = ydl.prepare_filename(info)
+            return filepath
+        except Exception as e:
+            print(f"Error downloading video: {e}")
+            return None
+
+def get_lyrics(song_query):
     """
-    Fetch lyrics using Lyrics.ovh free API.
-    Expects query format: "artist - song"
+    Get lyrics from free API: lyrics.ovh or fallback to Genius scraping
+    song_query: 'artist - song title' or just 'song title'
     """
+    # Try lyrics.ovh first
     try:
-        if '-' not in query:
-            return "Invalid format. Use 'Artist - Song Title'."
-        artist, song = map(str.strip, query.split('-', 1))
-        url = f"https://api.lyrics.ovh/v1/{artist}/{song}"
-        response = requests.get(url)
-        data = response.json()
+        artist, song = None, None
+        if " - " in song_query:
+            artist, song = song_query.split(" - ", 1)
+        else:
+            song = song_query
 
-        if 'lyrics' in data and data['lyrics']:
-            return data['lyrics']
+        if artist:
+            url = f"https://api.lyrics.ovh/v1/{artist.strip()}/{song.strip()}"
+        else:
+            url = f"https://api.lyrics.ovh/v1//{song.strip()}"
+
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("lyrics", "Lyrics not found.")
+    except Exception as e:
+        print(f"Error fetching lyrics.ovh API: {e}")
+
+    # Fallback: Simple Genius scraping (basic)
+    try:
+        import lyricsgenius
+        GENIUS_ACCESS_TOKEN = os.getenv("GENIUS_ACCESS_TOKEN")
+        if not GENIUS_ACCESS_TOKEN:
+            return "No Genius API token set."
+        genius = lyricsgenius.Genius(GENIUS_ACCESS_TOKEN, skip_non_songs=True, excluded_terms=["(Remix)", "(Live)"], remove_section_headers=True)
+        song = genius.search_song(song_query)
+        if song:
+            return song.lyrics
         else:
             return "Lyrics not found."
     except Exception as e:
-        return f"Error fetching lyrics: {str(e)}"
+        print(f"Error fetching lyrics from Genius: {e}")
+        return "Lyrics not found."
 
-def download_video(url):
-    """
-    Download video from URL (supports YouTube, TikTok, Instagram, Facebook).
-    Attempts to download without watermark where possible.
-    Returns path or direct download link.
-    """
-    try:
-        # Use yt_dlp for supported URLs
-        ydl_opts = {
-            'format': 'best',
-            'outtmpl': 'downloads/%(title)s.%(ext)s',
-            'quiet': True,
-            'no_warnings': True,
-            'noplaylist': True
-        }
-
-        # For TikTok, Instagram, Facebook, try no watermark options (if supported)
-        if 'tiktok.com' in url:
-            ydl_opts['format'] = 'mp4'  # Best mp4 format
-            ydl_opts['postprocessors'] = [{
-                'key': 'FFmpegMetadata',
-            }]
-            # yt-dlp supports no watermark by default sometimes
-        elif 'instagram.com' in url or 'facebook.com' in url:
-            # Same options, yt-dlp handles these URLs
-            pass
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            return filename  # Return saved file path
-
-    except Exception as e:
-        print(f"Error downloading video: {e}")
-        return None
+if __name__ == "__main__":
+    # quick test
+    print("Search results for 'Imagine Dragons':")
+    results = search_songs("Imagine Dragons")
+    for r in results[:3]:
+        print(r['title'], r['url'])
