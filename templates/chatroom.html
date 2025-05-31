@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chatroom | StreamMe</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Live Chatroom</h1>
+    
+    <!-- Ask user for nickname -->
+    <label>Set Your Nickname:</label>
+    <input type="text" id="nickname" placeholder="Enter nickname" required>
+    <button onclick="setNickname()">Join Chat</button>
+
+    <div id="chat-box"></div>
+    <input type="text" id="message" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        const socket = io();
+        let nickname = "";
+
+        function setNickname() {
+            nickname = document.getElementById("nickname").value.trim();
+            if (nickname) {
+                socket.emit("join", nickname);
+                document.getElementById("nickname").disabled = true;
+            }
+        }
+
+        socket.on("message", function(data) {
+            let chatBox = document.getElementById("chat-box");
+            let msg = document.createElement("p");
+            msg.innerHTML = `<strong>${data.nickname}:</strong> ${data.text}`;
+            chatBox.appendChild(msg);
+        });
+
+        function sendMessage() {
+            let message = document.getElementById("message").value.trim();
+            if (message) {
+                socket.emit("message", { nickname: nickname, text: message });
+                document.getElementById("message").value = "";
+            }
+        }
+    </script>
+</body>
+                                          </html
