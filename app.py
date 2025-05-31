@@ -1,89 +1,78 @@
-from flask import Flask, render_template, request, jsonify
+import os
+from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
-import requests
-from urllib.parse import quote as url_quote  # ✅ Standard Python URL encoder
-from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
+from urllib.parse import quote as url_quote  # Use urllib.parse.quote instead of werkzeug.urls
 from dotenv import load_dotenv
-import os
+from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 
-# ✅ Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
-app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET")
-db = SQLAlchemy(app)
-socketio = SocketIO(app, async_mode="eventlet")  # ✅ Real-Time Chat Support
+app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET") or "supersecretkey"
 
-# 🏠 Home Page
+db = SQLAlchemy(app)
+socketio = SocketIO(app, async_mode="eventlet")  # Use eventlet for async support
+
+# Import your models here after db is initialized to avoid circular imports
+from database.models import Favorite  # Adjust based on your actual models path
+
+# ----- Routes -----
+
 @app.route('/')
 def index():
     latest_releases = search_songs("latest")
     return render_template("index.html", latest_releases=latest_releases)
 
-# ℹ️ About Page
 @app.route('/about')
 def about():
     return render_template("about.html")
 
-# 🔍 Search Page
 @app.route('/search', methods=["POST"])
 def search():
     query = request.form.get("query")
     if not query:
         return render_template("search.html", error="Please enter a search term.")
-    
     results = search_songs(query)
     return render_template("search.html", results=results)
 
-# 🎵 Play Audio Page
 @app.route('/play/audio')
 def play_audio():
     query = request.args.get("query")
     if not query:
         return render_template("play_audio.html", error="No audio found.")
-    
     audio_data = get_audio(query)
     return render_template("play_audio.html", audio=audio_data)
 
-# 🎥 Play Video Page
 @app.route('/play/video')
 def play_video():
     query = request.args.get("query")
     if not query:
         return render_template("play_video.html", error="No video found.")
-    
     video_data = get_video(query)
     return render_template("play_video.html", video=video_data)
 
-# 📜 Lyrics Page
 @app.route('/lyrics')
 def lyrics():
     artist = request.args.get("artist")
     song = request.args.get("song")
-
     if not artist or not song:
         return render_template("lyrics.html", error="Please enter both artist name and song title.")
-
     lyrics_data = get_lyrics(f"{artist} - {song}")
     return render_template("lyrics.html", lyrics=lyrics_data)
 
-# ⬇️ Video Downloader
 @app.route('/download', methods=["POST"])
 def download():
     video_url = request.form.get("video_url")
     if not video_url:
         return render_template("download.html", error="Invalid video URL.")
-    
     download_link = download_video(video_url)
     return render_template("download.html", link=download_link)
 
-# ❤️ Favorites Page
 @app.route('/favorites', methods=["GET", "POST"])
 def favorites():
-    from models import Favorite
-
     if request.method == "POST":
         user_id = request.form.get("user_id")
         song_title = request.form.get("song_title")
@@ -93,11 +82,12 @@ def favorites():
             favorite = Favorite(user_id=user_id, song_title=song_title, song_url=song_url)
             db.session.add(favorite)
             db.session.commit()
-    
+
     user_favorites = Favorite.query.all()
     return render_template("favorites.html", favorites=user_favorites)
 
-# 💬 Real-Time Chatroom
+# ----- SocketIO Events -----
+
 users = {}
 
 @socketio.on("join")
@@ -114,6 +104,7 @@ def handle_disconnect():
     nickname = users.pop(request.sid, "Unknown")
     socketio.emit("message", {"nickname": "System", "text": f"{nickname} left the chat."})
 
-# 🚀 Run App
-if __name__ == '__main__':
+# ----- Run app -----
+
+if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
