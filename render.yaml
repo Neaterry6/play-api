@@ -1,0 +1,13 @@
+services:
+  - name: streamme-app
+    type: web
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app.py"
+    envVars:
+      - key: DATABASE_URL
+        value: "postgresql://neondb_owner:npg_gX98vslEYZNe@ep-tiny-rain-a50izhgg.us-east-2.aws.neon.tech/neondb?sslmode=require"
+      - key: SESSION_SECRET
+        value: "hiItkwH1TAEtUpT2/DVHAExrZGQqj0cuRItb6AqAhFEIGOaBIwzb7wXvxi/Ms9VKLZIsOFoNxz7/F69k9PZz0g=="
+      - key: COOKIES_PATH
+        value: "cookies.txt
