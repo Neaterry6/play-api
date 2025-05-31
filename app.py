@@ -2,27 +2,22 @@ import os
 from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
-from urllib.parse import quote as url_quote
+from urllib.parse import quote as url_quote  # Use urllib.parse.quote instead of werkzeug.urls
 from dotenv import load_dotenv
-
-# Local imports
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
-# ----- App Config -----
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET") or "supersecretkey"
 
-# Database & SocketIO initialization
 db = SQLAlchemy(app)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+socketio = SocketIO(app, async_mode="eventlet")  # Use eventlet for async support
 
-# Import models after db init to avoid circular imports
-from database.models import Favorite
-
+# Import your models here after db is initialized to avoid circular imports
+from database.models import Favorite  # Adjust based on your actual models path
 
 # ----- Routes -----
 
@@ -31,11 +26,9 @@ def index():
     latest_releases = search_songs("latest")
     return render_template("index.html", latest_releases=latest_releases)
 
-
 @app.route('/about')
 def about():
     return render_template("about.html")
-
 
 @app.route('/search', methods=["POST"])
 def search():
@@ -45,7 +38,6 @@ def search():
     results = search_songs(query)
     return render_template("search.html", results=results)
 
-
 @app.route('/play/audio')
 def play_audio():
     query = request.args.get("query")
@@ -53,7 +45,6 @@ def play_audio():
         return render_template("play_audio.html", error="No audio found.")
     audio_data = get_audio(query)
     return render_template("play_audio.html", audio=audio_data)
-
 
 @app.route('/play/video')
 def play_video():
@@ -63,16 +54,14 @@ def play_video():
     video_data = get_video(query)
     return render_template("play_video.html", video=video_data)
 
-
 @app.route('/lyrics')
 def lyrics():
     artist = request.args.get("artist")
     song = request.args.get("song")
     if not artist or not song:
-        return render_template("lyrics.html", error="Please enter both artist and song title.")
+        return render_template("lyrics.html", error="Please enter both artist name and song title.")
     lyrics_data = get_lyrics(f"{artist} - {song}")
     return render_template("lyrics.html", lyrics=lyrics_data)
-
 
 @app.route('/download', methods=["POST"])
 def download():
@@ -81,7 +70,6 @@ def download():
         return render_template("download.html", error="Invalid video URL.")
     download_link = download_video(video_url)
     return render_template("download.html", link=download_link)
-
 
 @app.route('/favorites', methods=["GET", "POST"])
 def favorites():
@@ -98,30 +86,35 @@ def favorites():
     user_favorites = Favorite.query.all()
     return render_template("favorites.html", favorites=user_favorites)
 
-
 # ----- SocketIO Events -----
 
 users = {}
-
 
 @socketio.on("join")
 def handle_join(nickname):
     users[request.sid] = nickname
     socketio.emit("message", {"nickname": "System", "text": f"{nickname} joined the chat!"})
 
-
 @socketio.on("message")
 def handle_message(data):
     socketio.emit("message", data)
 
+@socketio.on("image")
+def handle_image(data):
+    # data should contain 'nickname' and 'image' (base64 string)
+    socketio.emit("image", data)
+
+@socketio.on("voice")
+def handle_voice(data):
+    # data should contain 'nickname' and 'audio' (base64 string)
+    socketio.emit("voice", data)
 
 @socketio.on("disconnect")
 def handle_disconnect():
     nickname = users.pop(request.sid, "Unknown")
     socketio.emit("message", {"nickname": "System", "text": f"{nickname} left the chat."})
 
-
-# ----- Run App -----
+# ----- Run app -----
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5000)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
