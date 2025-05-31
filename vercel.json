@@ -6,13 +6,13 @@
       "use": "@vercel/python"
     }
   ],
+  "installCommand": "apt-get update && apt-get install -y postgresql-client",
   "routes": [
     {
       "src": "/(.*)",
       "dest": "app.py"
     }
   ],
-  "installCommand": "apt-get update && apt-get install -y postgresql-client",
   "env": {
     "DATABASE_URL": "your-postgresql-connection-string",
     "SESSION_SECRET": "your-session-secret-key",
