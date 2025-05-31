@@ -1,21 +1,16 @@
 {
   "version": 2,
+  "name": "mediahub-app",
   "builds": [
     {
-      "src": "app.py",
-      "use": "@vercel/python"
+      "src": "Dockerfile",
+      "use": "@vercel/docker"
     }
   ],
-  "installCommand": "apt-get update && apt-get install -y postgresql-client",
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "/"
     }
-  ],
-  "env": {
-    "DATABASE_URL": "your-postgresql-connection-string",
-    "SESSION_SECRET": "your-session-secret-key",
-    "COOKIES_PATH": "cookies.txt"
-  }
+  ]
 }
