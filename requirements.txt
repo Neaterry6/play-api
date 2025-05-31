@@ -3,6 +3,6 @@ Flask-SQLAlchemy==3.0.1
 requests==2.31.0
 gunicorn==20.1.0
 python-dotenv==1.0.0
-psycopg2==2.9.6  # ✅ Fixed issue by replacing psycopg2-binary with psycopg2
-yt-dlp==2024.03.10  # ✅ Required for downloading videos
-werkzeug==2.0.3  # ✅ Pinned version to fix url_quote import issue
+psycopg2==2.9.6
+yt-dlp==2024.03.10
+werkzeug==2.0.3  # ✅ Pinning an older version to prevent errors
