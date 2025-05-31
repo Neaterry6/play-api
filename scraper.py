@@ -1,104 +1,152 @@
-import os
-from yt_dlp import YoutubeDL
-from youtube_search import YoutubeSearch
 import requests
-from bs4 import BeautifulSoup
+from youtube_search import YoutubeSearch
+import yt_dlp
+import re
 
-# YouTube Search using youtube_search package
 def search_songs(query, max_results=10):
-    results = YoutubeSearch(query, max_results=max_results).to_dict()
-    songs = []
-    for item in results:
-        songs.append({
-            "title": item.get("title"),
-            "url_suffix": item.get("url_suffix"),
-            "duration": item.get("duration"),
-            "thumbnails": item.get("thumbnails"),
-            "channel": item.get("channel")
-        })
-    return songs
-
-# Get video info + streaming url
-def get_video(query):
-    ydl_opts = {
-        "quiet": True,
-        "skip_download": True,
-        "format": "bestvideo+bestaudio/best",
-    }
-    with YoutubeDL(ydl_opts) as ydl:
-        try:
-            info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
-            return {
-                "title": info.get("title"),
-                "url": info.get("webpage_url"),
-                "thumbnail": info.get("thumbnail"),
-                "duration": info.get("duration"),
-                "formats": info.get("formats")
-            }
-        except Exception as e:
-            print(f"Error fetching video info: {e}")
-            return None
-
-# Get audio info + streaming url
-def get_audio(query):
-    ydl_opts = {
-        "quiet": True,
-        "skip_download": True,
-        "format": "bestaudio/best",
-    }
-    with YoutubeDL(ydl_opts) as ydl:
-        try:
-            info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
-            return {
-                "title": info.get("title"),
-                "url": info.get("webpage_url"),
-                "thumbnail": info.get("thumbnail"),
-                "duration": info.get("duration"),
-                "audio_url": info.get("url"),
-            }
-        except Exception as e:
-            print(f"Error fetching audio info: {e}")
-            return None
-
-# Get lyrics by scraping lyrics.com (as example)
-def get_lyrics(query):
+    """
+    Search YouTube for songs/videos matching the query.
+    Returns a list of dicts with title, url, duration, and thumbnail.
+    """
+    results = []
     try:
-        # Replace spaces with + for URL search
-        search_url = f"https://www.lyrics.com/serp.php?st={query.replace(' ', '+')}&qtype=2"
-        res = requests.get(search_url)
-        soup = BeautifulSoup(res.text, "html.parser")
-        # Find first lyrics link
-        link = soup.select_one("td.tal.qx a")
-        if link:
-            lyrics_page = requests.get(f"https://www.lyrics.com{link['href']}")
-            lyrics_soup = BeautifulSoup(lyrics_page.text, "html.parser")
-            lyrics_div = lyrics_soup.find("pre", id="lyric-body-text")
-            if lyrics_div:
-                return lyrics_div.get_text()
-        return "Lyrics not found."
+        yt_results = YoutubeSearch(query, max_results=max_results).to_dict()
+        for video in yt_results:
+            results.append({
+                "title": video.get("title"),
+                "url": f"https://www.youtube.com{video.get('url_suffix')}",
+                "duration": video.get("duration"),
+                "thumbnail": video.get("thumbnails")[0] if video.get("thumbnails") else None
+            })
     except Exception as e:
-        print(f"Error fetching lyrics: {e}")
-        return "Lyrics not found."
+        print(f"Error searching songs: {e}")
+    return results
 
-# Download video from URL (no watermark for TikTok/Facebook/Instagram using yt-dlp)
-def download_video(video_url, download_path="downloads"):
-    os.makedirs(download_path, exist_ok=True)
-    ydl_opts = {
-        "outtmpl": f"{download_path}/%(title)s.%(ext)s",
-        "format": "best",
-        "quiet": True,
-        "noplaylist": True,
-        # Remove watermark for TikTok and others if possible:
-        "postprocessors": [{
-            "key": "FFmpegVideoConvertor",
-            "preferedformat": "mp4",
-        }],
-    }
+def get_video(query):
+    """
+    Get video info for the first YouTube result for the query.
+    """
     try:
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url)
+        results = search_songs(query, max_results=1)
+        if not results:
+            return None
+        url = results[0]['url']
+        info = get_video_info(url)
+        return info
+    except Exception as e:
+        print(f"Error getting video: {e}")
+        return None
+
+def get_audio(query):
+    """
+    Get audio info for the first YouTube result for the query.
+    """
+    try:
+        results = search_songs(query, max_results=1)
+        if not results:
+            return None
+        url = results[0]['url']
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'no_warnings': True,
+            'skip_download': True,
+            'forceurl': True,
+            'forcejson': True
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            audio_url = None
+            for f in info.get('formats', []):
+                if f.get('acodec') != 'none' and f.get('vcodec') == 'none':
+                    audio_url = f.get('url')
+                    break
+            return {
+                'title': info.get('title'),
+                'audio_url': audio_url,
+                'thumbnail': info.get('thumbnail')
+            }
+    except Exception as e:
+        print(f"Error getting audio: {e}")
+        return None
+
+def get_video_info(url):
+    """
+    Extract detailed video info using yt_dlp.
+    """
+    try:
+        ydl_opts = {
+            'format': 'best',
+            'quiet': True,
+            'no_warnings': True
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return {
+                'title': info.get('title'),
+                'url': url,
+                'duration': info.get('duration'),
+                'thumbnail': info.get('thumbnail'),
+                'description': info.get('description'),
+                'view_count': info.get('view_count'),
+                'upload_date': info.get('upload_date')
+            }
+    except Exception as e:
+        print(f"Error extracting video info: {e}")
+        return None
+
+def get_lyrics(query):
+    """
+    Fetch lyrics using Lyrics.ovh free API.
+    Expects query format: "artist - song"
+    """
+    try:
+        if '-' not in query:
+            return "Invalid format. Use 'Artist - Song Title'."
+        artist, song = map(str.strip, query.split('-', 1))
+        url = f"https://api.lyrics.ovh/v1/{artist}/{song}"
+        response = requests.get(url)
+        data = response.json()
+
+        if 'lyrics' in data and data['lyrics']:
+            return data['lyrics']
+        else:
+            return "Lyrics not found."
+    except Exception as e:
+        return f"Error fetching lyrics: {str(e)}"
+
+def download_video(url):
+    """
+    Download video from URL (supports YouTube, TikTok, Instagram, Facebook).
+    Attempts to download without watermark where possible.
+    Returns path or direct download link.
+    """
+    try:
+        # Use yt_dlp for supported URLs
+        ydl_opts = {
+            'format': 'best',
+            'outtmpl': 'downloads/%(title)s.%(ext)s',
+            'quiet': True,
+            'no_warnings': True,
+            'noplaylist': True
+        }
+
+        # For TikTok, Instagram, Facebook, try no watermark options (if supported)
+        if 'tiktok.com' in url:
+            ydl_opts['format'] = 'mp4'  # Best mp4 format
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegMetadata',
+            }]
+            # yt-dlp supports no watermark by default sometimes
+        elif 'instagram.com' in url or 'facebook.com' in url:
+            # Same options, yt-dlp handles these URLs
+            pass
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
-            return filename  # return path to downloaded file
+            return filename  # Return saved file path
+
     except Exception as e:
         print(f"Error downloading video: {e}")
         return None
