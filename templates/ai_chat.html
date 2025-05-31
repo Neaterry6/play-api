@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-section">
+    <h1>💬 AI Chat</h1>
+    <form method="POST">
+        <input type="text" name="user_message" placeholder="Ask me anything..." required>
+        <button type="submit">Send</button>
+    </form>
+
+    {% if ai_response %}
+        <div class="chat-response">
+            <p><strong>You:</strong> {{ user_message }}</p>
+            <p><strong>TitanAI:</strong> {{ ai_response }}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %
