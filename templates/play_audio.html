@@ -2,12 +2,18 @@
 <html>
 <head>
     <title>Play Audio</title>
-    <link rel="stylesheet" href="static/styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    <nav>
+        <a href="/">🏠 Home</a> |
+        <a href="/search">🔍 Search</a> |
+        <a href="/download">⬇️ Download</a>
+    </nav>
+
     <h1>🎶 Now Playing: {{ audio.title }}</h1>
     <audio controls>
         <source src="{{ audio.audio_url }}" type="audio/mp3">
     </audio>
 </body>
-</html
+</html>
