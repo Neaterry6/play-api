@@ -2,9 +2,14 @@
 <html>
 <head>
     <title>Search Songs</title>
-    <link rel="stylesheet" href="static/styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    <nav>
+        <a href="/">🏠 Home</a> |
+        <a href="/about">ℹ️ About</a>
+    </nav>
+
     <h2>🔍 Search for a Song:</h2>
     <form action="/search" method="POST">
         <input type="text" name="query" placeholder="Enter song name...">
@@ -25,4 +30,4 @@
         </ul>
     {% endif %}
 </body>
-</html
+</html>
