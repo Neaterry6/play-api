@@ -1,61 +1,91 @@
-from flask import Flask, render_template, request, jsonify, url_for
+from flask import Flask, render_template, request, jsonify
+import requests
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 
-app = Flask(__name__, static_url_path='/static')
+app = Flask(__name__)
 
-# 🏠 Home Page
+# Load Netscape cookies for YouTube authentication
+COOKIES_PATH = "cookies.txt"
+
+def get_cookie_header():
+    try:
+        with open(COOKIES_PATH, "r") as f:
+            cookies = f.read().strip()
+        return {"Cookie": cookies}
+    except FileNotFoundError:
+        print("⚠️ Cookies file not found. Make sure 'cookies.txt' exists!")
+        return {}
+
+# 🏠 Home Page - Display latest releases
 @app.route('/')
 def index():
-    return render_template("index.html")
+    latest_releases = search_songs("latest", cookies=get_cookie_header())
+    return render_template("index.html", latest_releases=latest_releases)
 
 # ℹ️ About Page
 @app.route('/about')
 def about():
     return render_template("about.html")
 
-# 🔍 Search Page (Fetch Multiple Results)
-@app.route('/search', methods=["GET", "POST"])
+# 🔍 Search Page
+@app.route('/search', methods=["POST"])
 def search():
-    if request.method == "POST":
-        query = request.form.get("query")
-        results = search_songs(query)
-        return render_template("search.html", results=results)
-    return render_template("search.html")
+    query = request.form.get("query")
+    if not query:
+        return render_template("search.html", error="Please enter a search term.")
+    
+    results = search_songs(query, cookies=get_cookie_header())
+    return render_template("search.html", results=results)
 
 # 🎵 Play Audio Page
 @app.route('/play/audio')
 def play_audio():
     query = request.args.get("query")
-    audio_data = get_audio(query)
+    if not query:
+        return render_template("play_audio.html", error="No audio found.")
+    
+    audio_data = get_audio(query, cookies=get_cookie_header())
     return render_template("play_audio.html", audio=audio_data)
 
 # 🎥 Play Video Page
 @app.route('/play/video')
 def play_video():
     query = request.args.get("query")
-    video_data = get_video(query)
+    if not query:
+        return render_template("play_video.html", error="No video found.")
+    
+    video_data = get_video(query, cookies=get_cookie_header())
     return render_template("play_video.html", video=video_data)
 
-# 📜 Lyrics Page
+# 📜 Lyrics Page (Using Lyrics.ovh API)
 @app.route('/lyrics')
 def lyrics():
-    query = request.args.get("query")
-    lyrics_data = get_lyrics(query)
+    artist = request.args.get("artist")
+    song = request.args.get("song")
+
+    if not artist or not song:
+        return render_template("lyrics.html", error="Please enter both artist name and song title.")
+
+    api_url = f"https://api.lyrics.ovh/v1/{artist}/{song}"
+    response = requests.get(api_url)
+
+    if response.status_code == 200:
+        data = response.json()
+        lyrics_data = data.get("lyrics", "Lyrics not found.")
+    else:
+        lyrics_data = "Lyrics not found or API request failed."
+
     return render_template("lyrics.html", lyrics=lyrics_data)
 
 # ⬇️ Download Page
-@app.route('/download', methods=["GET", "POST"])
+@app.route('/download', methods=["POST"])
 def download():
-    if request.method == "POST":
-        video_url = request.form.get("video_url")
-        download_link = download_video(video_url)
-        return render_template("download.html", link=download_link)
-    return render_template("download.html")
-
-# 🔧 Ensure Static Files Load Properly
-@app.route('/static/<path:filename>')
-def static_files(filename):
-    return url_for('static', filename=filename)
+    video_url = request.form.get("video_url")
+    if not video_url:
+        return render_template("download.html", error="Invalid video URL.")
+    
+    download_link = download_video(video_url, cookies=get_cookie_header())
+    return render_template("download.html", link=download_link)
 
 # 🚀 Run Flask App
 if __name__ == '__main__':
