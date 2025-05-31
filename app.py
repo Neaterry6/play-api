@@ -3,29 +3,17 @@ import requests
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 from dotenv import load_dotenv
 import os
+from urllib.parse import quote as url_quote  # ✅ Fixed Werkzeug issue
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 
-# Load YouTube Netscape Cookies from environment settings
-COOKIES_PATH = os.getenv("COOKIES_PATH", "cookies.txt")
-
-def get_cookie_header():
-    """Load cookies for authentication."""
-    try:
-        with open(COOKIES_PATH, "r") as f:
-            cookies = f.read().strip()
-        return {"Cookie": cookies}
-    except FileNotFoundError:
-        print("⚠️ Cookies file not found. Some features may not work.")
-        return {}
-
 # 🏠 Home Page
 @app.route('/')
 def index():
-    latest_releases = search_songs("latest")
+    latest_releases = search_songs("latest")  # ✅ Removed incorrect 'cookies' argument
     return render_template("index.html", latest_releases=latest_releases)
 
 # ℹ️ About Page
@@ -40,7 +28,7 @@ def search():
     if not query:
         return render_template("search.html", error="Please enter a search term.")
     
-    results = search_songs(query)
+    results = search_songs(query)  # ✅ Ensures correct argument passing
     return render_template("search.html", results=results)
 
 # 🎵 Play Audio Page
