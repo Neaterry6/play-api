@@ -1,91 +1,106 @@
 
 
-### **README.md**
-```markdown
-# 🎵 Play API — Music & Video Streaming API
+### **📌 `README.md` (Project Documentation)**
+```md
+# 🎵 StreamMe - The Ultimate Music & Video Streaming Platform
 
-Play API allows users to **search**, **stream**, and **download** music or videos, powered by **Flask** and **yt-dlp**.  
-It also provides **lyrics** for songs using an open-source API.
+Welcome to **StreamMe**, a powerful streaming platform that lets users **search, play, download videos**, and **fetch song lyrics effortlessly**. 🚀  
 
-## ✨ Features
-- 🔍 **Search for multiple songs** from YouTube
-- 🎥 **Stream videos** directly on the website
-- 🔊 **Play audio** without extra downloads
-- 📜 **Get lyrics** for any song
-- ⬇️ **Download songs/videos** with different quality options
-- 🚀 **Built-in Docker support** for easy deployment
+## 🌟 Features
+✅ **Music & Video Streaming** - Play audio and video from multiple sources.  
+✅ **Universal Downloader** - Download videos from any site without watermarks.  
+✅ **Lyrics Fetching** - Search and display song lyrics dynamically.  
+✅ **Search History** - Track past searches for easy re-discovery.  
+✅ **Modern UI with Animation** - Sleek, fast, and interactive design.  
 
 ---
 
-## 🚀 Installation
+## 🛠️ Setup Guide
+Follow these steps to **install and run StreamMe** on your local machine:
 
-### 1️⃣ Clone this repository
-```sh
-git clone https://github.com/yourusername/play-api.git
-cd play-api
+### **1️⃣ Clone the Repository**
+```bash
+git clone https://github.com/yourusername/StreamMe.git
+cd StreamMe
 ```
 
-### 2️⃣ Install dependencies
-```sh
+### **2️⃣ Install Dependencies**
+```bash
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Run Flask server
-```sh
+### **3️⃣ Set Up Environment Variables**
+Create a `.env` file and add:
+```
+SESSION_SECRET=""
+DATABASE_URL=""
+PGDATABASE=""
+PGHOST=""
+PGPORT=""
+PGUSER=""
+PGPASSWORD=""
+COOKIES_PATH="cookies.txt"
+```
+
+### **4️⃣ Run the Application**
+```bash
 python app.py
 ```
 
-### 4️⃣ Open in browser
-Visit: `http://127.0.0.1:5000/`
-
 ---
 
-## 📦 Docker Deployment
-Want to run this API in a **Docker container**?
-```sh
-docker build -t play-api .
-docker run -p 5000:5000 play-api
+## 🚀 Deployment Guide
+### **Render Deployment**
+1️⃣ Create a new service on [Render](https://render.com).  
+2️⃣ Connect GitHub repo and select **Python** as environment.  
+3️⃣ Render will read `render.yaml` and deploy automatically!  
+
+### **Vercel Deployment**
+```bash
+npm install -g vercel
+vercel
 ```
+Follow the setup instructions to deploy StreamMe on **Vercel**.
+
+### **Docker Deployment**
+```bash
+docker build -t streamme .
+docker run -p 10000:10000 streamme
+```
+This will containerize StreamMe and allow **deployment anywhere**.
 
 ---
 
-## 🌍 Render Deployment
-Deploy this API on Render in **three simple steps:**
-1. **Create a Render account** → [Render.com](https://render.com/)
-2. **Create a new Web Service** → Select **GitHub Repo**
-3. **Set Build & Start Commands**
-   - Build: `pip install -r requirements.txt`
-   - Start: `python app.py`
+## 📜 API Integrations
+### **Lyrics API (Lyrics.ovh)**
+- Fetch lyrics using `{artist}/{song}` format.
+- Example API call:  
+  ```bash
+  curl https://api.lyrics.ovh/v1/Eminem/Lose%20Yourself
+  ```
 
-🚀 **Boom! Your API is live!**
-
----
-
-## 🔥 API Endpoints
-| Endpoint | Description |
-|----------|------------|
-| `/search?query=<song>` | Search for songs |
-| `/play/audio?query=<song>` | Play audio |
-| `/play/video?query=<song>` | Play video |
-| `/lyrics?query=<song>` | Get song lyrics |
-| `/download?video_url=<link>` | Download videos |
+### **YouTube Video Downloader (yt-dlp)**
+- Allows **watermark-free** downloads from any video source.
+- Example command:
+  ```bash
+  yt-dlp "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  ```
 
 ---
 
-## ⚙️ Tech Stack
-- **Flask** → Web framework
-- **yt-dlp** → Video/audio downloading
-- **Render** → Deployment platform
-- **Docker** → Containerized setup
-- **HTML & CSS** → Frontend UI
+## 🛠 Technology Stack
+- **Backend:** Flask, Python  
+- **Frontend:** HTML, CSS, JavaScript  
+- **Database:** PostgreSQL (NeonDB)  
+- **Deployment:** Render, Vercel, Docker  
+- **Video Processing:** yt-dlp  
+- **Lyrics API:** Lyrics.ovh  
 
 ---
 
-## 🛠 Contributing
-Want to improve the Play API?  
-Fork this repo and submit a **pull request!** 🚀  
-
----
+## 🎤 Contributors
+👤 **Your Name** - heisbroken ✍️✨  
+📧 Contact: akewusholaabdulbakri101@gmail.com
 
 ## 📜 License
-MIT License © 2025 heisbroken ✍️
+This project is licensed under **MIT License**. Feel free to contribute and enhance StreamMe!  
