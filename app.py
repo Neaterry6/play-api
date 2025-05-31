@@ -5,6 +5,7 @@ import requests
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 from dotenv import load_dotenv
 import os
+from urllib.parse import quote as url_quote  # ✅ Fixed Werkzeug issue
 
 # ✅ Load environment variables
 load_dotenv()
@@ -96,7 +97,7 @@ def favorites():
     user_favorites = Favorite.query.all()
     return render_template("favorites.html", favorites=user_favorites)
 
-# 💬 Chatroom Functionality
+# 💬 Real-Time Chatroom Functionality
 users = {}
 
 @socketio.on("join")
