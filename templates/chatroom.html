@@ -4,46 +4,61 @@
     <meta charset="UTF-8">
     <title>Chatroom | StreamMe</title>
     <link rel="stylesheet" href="/static/css/styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
-    <h1>Live Chatroom</h1>
-    
-    <!-- Ask user for nickname -->
-    <label>Set Your Nickname:</label>
+    <h1>🎙️ Live Chatroom</h1>
+
+    <!-- Set nickname -->
+    <label for="nickname">Set Your Nickname:</label>
     <input type="text" id="nickname" placeholder="Enter nickname" required>
     <button onclick="setNickname()">Join Chat</button>
 
-    <div id="chat-box"></div>
-    <input type="text" id="message" placeholder="Type a message...">
-    <button onclick="sendMessage()">Send</button>
+    <!-- Chat messages -->
+    <div id="chat-box" style="border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; margin-top: 20px;"></div>
+
+    <!-- Message input -->
+    <input type="text" id="message" placeholder="Type a message..." disabled>
+    <button onclick="sendMessage()" id="send-btn" disabled>Send</button>
 
     <script>
         const socket = io();
         let nickname = "";
 
         function setNickname() {
-            nickname = document.getElementById("nickname").value.trim();
+            const input = document.getElementById("nickname");
+            nickname = input.value.trim();
             if (nickname) {
                 socket.emit("join", nickname);
-                document.getElementById("nickname").disabled = true;
+                input.disabled = true;
+                document.getElementById("message").disabled = false;
+                document.getElementById("send-btn").disabled = false;
             }
         }
 
         socket.on("message", function(data) {
-            let chatBox = document.getElementById("chat-box");
-            let msg = document.createElement("p");
+            const chatBox = document.getElementById("chat-box");
+            const msg = document.createElement("p");
             msg.innerHTML = `<strong>${data.nickname}:</strong> ${data.text}`;
             chatBox.appendChild(msg);
+            chatBox.scrollTop = chatBox.scrollHeight;
         });
 
         function sendMessage() {
-            let message = document.getElementById("message").value.trim();
+            const messageInput = document.getElementById("message");
+            const message = messageInput.value.trim();
             if (message) {
                 socket.emit("message", { nickname: nickname, text: message });
-                document.getElementById("message").value = "";
+                messageInput.value = "";
             }
         }
+
+        // Allow Enter key to send message
+        document.getElementById("message").addEventListener("keyup", function(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        });
     </script>
 </body>
-                                          </html
+</html>
