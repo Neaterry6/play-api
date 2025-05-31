@@ -7,6 +7,10 @@ app = Flask(__name__)
 def index():
     return render_template("index.html")
 
+@app.route('/about')
+def about():
+    return render_template("about.html")
+
 @app.route('/search', methods=["GET", "POST"])
 def search():
     if request.method == "POST":
@@ -42,4 +46,4 @@ def download():
     return render_template("download.html")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=10000, debug=True)
