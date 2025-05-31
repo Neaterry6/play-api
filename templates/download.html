@@ -2,18 +2,24 @@
 <html>
 <head>
     <title>Download Video</title>
-    <link rel="stylesheet" href="static/styles.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    <nav>
+        <a href="/">🏠 Home</a> |
+        <a href="/search">🔍 Search</a> |
+        <a href="/play/video">🎥 Play Video</a>
+    </nav>
+
     <h1>📥 Download Videos From Anywhere</h1>
     <form action="/download" method="POST">
         <input type="text" name="video_url" placeholder="Paste video link here...">
         <button type="submit">Download ⬇️</button>
     </form>
-    
+
     {% if link %}
         <h3>Your Download Link:</h3>
         <a href="{{ link }}" target="_blank">Click to Download</a>
     {% endif %}
 </body>
-</html
+</html>
