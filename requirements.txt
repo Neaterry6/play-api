@@ -5,4 +5,4 @@ gunicorn==20.1.0
 python-dotenv==1.0.0
 psycopg2==2.9.6
 yt-dlp==2024.03.10
-werkzeug==2.0.3  # ✅ Pinning an older version to prevent errors
+werkzeug==2.0.3  # ✅ Fixed import issue
