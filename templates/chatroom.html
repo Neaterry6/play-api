@@ -1,124 +1,282 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StreamMe Chatroom</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+      display: flex; flex-direction: column;
+      height: 100vh;
+    }
+    #chat {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 10px;
+      border-bottom: 1px solid #ccc;
+    }
+    #chat .message {
+      margin-bottom: 10px;
+    }
+    #chat .message .nickname {
+      font-weight: bold;
+      margin-right: 5px;
+    }
+    #chat .message.system {
+      color: #888;
+      font-style: italic;
+    }
+    #input-area {
+      display: flex;
+      padding: 10px;
+      background: #f0f0f0;
+      gap: 8px;
+      align-items: center;
+    }
+    #input-area input[type="text"] {
+      flex-grow: 1;
+      padding: 8px;
+      font-size: 1rem;
+    }
+    #input-area button {
+      padding: 8px 12px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    #nickname-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #nickname-modal div {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    #nickname-modal input {
+      padding: 8px;
+      width: 80%;
+      margin-bottom: 10px;
+    }
+    /* Style audio messages */
+    audio {
+      max-width: 300px;
+      display: block;
+      margin-top: 5px;
+    }
+    /* Style images */
+    img.chat-image {
+      max-width: 300px;
+      display: block;
+      margin-top: 5px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
 
-{% block title %}Chatroom | StreamMe{% endblock %}
-
-{% block content %}
-<h1>🎙️ Live Chatroom</h1>
-
-<div class="chat-controls">
-    <label>Set Your Nickname:</label>
-    <input type="text" id="nickname" placeholder="Enter nickname" required>
-    <button onclick="setNickname()">Join Chat</button>
+<div id="nickname-modal">
+  <div>
+    <h2>Enter your nickname</h2>
+    <input type="text" id="nickname-input" placeholder="Your nickname" />
+    <br />
+    <button id="join-btn">Join Chat</button>
+  </div>
 </div>
 
-<div id="chat-box" style="height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;"></div>
+<div id="chat"></div>
 
-<div class="message-controls">
-    <input type="text" id="message" placeholder="Type a message...">
-    <button onclick="sendMessage()">Send</button>
+<div id="input-area" style="display:none;">
+  <input type="text" id="message-input" placeholder="Type your message here..." autocomplete="off" />
+  <button id="send-btn">Send</button>
+  
+  <!-- Image upload button -->
+  <input type="file" id="image-input" accept="image/*" style="display:none;" />
+  <button id="image-btn" title="Send Image">📷</button>
+
+  <!-- Voice record button -->
+  <button id="record-btn" title="Record Voice Note">🎤</button>
+  <button id="stop-btn" title="Stop Recording" disabled>⏹️</button>
 </div>
 
-<div class="upload-controls">
-    <input type="file" id="imageInput" accept="image/*">
-    <button onclick="sendImage()">📷 Send Image</button>
-</div>
-
-<div class="voice-controls">
-    <button onclick="startRecording()">🎙️ Start Recording</button>
-    <button onclick="stopRecording()">⏹️ Stop & Send</button>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin="anonymous"></script>
 <script>
-    const socket = io();
-    let nickname = "";
-    let mediaRecorder;
-    let audioChunks = [];
+  const socket = io();
+  let nickname = "";
 
-    function setNickname() {
-        nickname = document.getElementById("nickname").value.trim();
-        if (nickname) {
-            socket.emit("join", nickname);
-            document.getElementById("nickname").disabled = true;
-        }
+  const chat = document.getElementById("chat");
+  const inputArea = document.getElementById("input-area");
+  const messageInput = document.getElementById("message-input");
+  const sendBtn = document.getElementById("send-btn");
+  const nicknameModal = document.getElementById("nickname-modal");
+  const nicknameInput = document.getElementById("nickname-input");
+  const joinBtn = document.getElementById("join-btn");
+
+  // Image elements
+  const imageInput = document.getElementById("image-input");
+  const imageBtn = document.getElementById("image-btn");
+
+  // Voice elements
+  const recordBtn = document.getElementById("record-btn");
+  const stopBtn = document.getElementById("stop-btn");
+  let mediaRecorder;
+  let audioChunks = [];
+
+  function addMessage(data, isSystem = false) {
+    const msgDiv = document.createElement("div");
+    msgDiv.classList.add("message");
+    if (isSystem) msgDiv.classList.add("system");
+
+    if (isSystem) {
+      msgDiv.textContent = data.text;
+    } else if (data.type === "image") {
+      // Image message
+      const nickSpan = document.createElement("span");
+      nickSpan.classList.add("nickname");
+      nickSpan.textContent = data.nickname + ": ";
+      msgDiv.appendChild(nickSpan);
+
+      const img = document.createElement("img");
+      img.src = data.image;
+      img.classList.add("chat-image");
+      msgDiv.appendChild(img);
+
+    } else if (data.type === "voice") {
+      // Voice message
+      const nickSpan = document.createElement("span");
+      nickSpan.classList.add("nickname");
+      nickSpan.textContent = data.nickname + ": ";
+      msgDiv.appendChild(nickSpan);
+
+      const audio = document.createElement("audio");
+      audio.controls = true;
+      audio.src = data.audio;
+      msgDiv.appendChild(audio);
+
+    } else {
+      // Text message
+      const nickSpan = document.createElement("span");
+      nickSpan.classList.add("nickname");
+      nickSpan.textContent = data.nickname + ": ";
+      msgDiv.appendChild(nickSpan);
+
+      const textSpan = document.createElement("span");
+      textSpan.textContent = data.text;
+      msgDiv.appendChild(textSpan);
     }
 
-    function sendMessage() {
-        let message = document.getElementById("message").value.trim();
-        if (message) {
-            socket.emit("message", { nickname: nickname, text: message });
-            document.getElementById("message").value = "";
-        }
+    chat.appendChild(msgDiv);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  joinBtn.onclick = () => {
+    const val = nicknameInput.value.trim();
+    if (val.length === 0) {
+      alert("Please enter a nickname.");
+      return;
     }
+    nickname = val;
+    socket.emit("join", nickname);
+    nicknameModal.style.display = "none";
+    inputArea.style.display = "flex";
+  };
 
-    function sendImage() {
-        const imageInput = document.getElementById("imageInput");
-        const file = imageInput.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                socket.emit("image", { nickname: nickname, image: e.target.result });
-            };
-            reader.readAsDataURL(file);
-        }
+  sendBtn.onclick = () => {
+    const text = messageInput.value.trim();
+    if (text.length === 0) return;
+    socket.emit("message", { nickname, text });
+    messageInput.value = "";
+  };
+
+  messageInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      sendBtn.click();
     }
+  });
 
-    function startRecording() {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                mediaRecorder.ondataavailable = event => {
-                    audioChunks.push(event.data);
-                };
-                mediaRecorder.start();
-            });
+  // Image sending
+  imageBtn.onclick = () => {
+    imageInput.click();
+  };
+
+  imageInput.onchange = () => {
+    const file = imageInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const base64 = event.target.result;
+      socket.emit("image", { nickname, image: base64, type: "image" });
+    };
+    reader.readAsDataURL(file);
+    imageInput.value = "";  // Reset file input
+  };
+
+  // Voice recording handlers
+  recordBtn.onclick = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("Your browser does not support audio recording.");
+      return;
     }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
 
-    function stopRecording() {
-        if (mediaRecorder) {
-            mediaRecorder.stop();
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    socket.emit("voice", { nickname: nickname, audio: e.target.result });
-                };
-                reader.readAsDataURL(audioBlob);
-            };
-        }
+      mediaRecorder.ondataavailable = (e) => {
+        audioChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64Audio = e.target.result;
+          socket.emit("voice", { nickname, audio: base64Audio, type: "voice" });
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+
+      mediaRecorder.start();
+      recordBtn.disabled = true;
+      stopBtn.disabled = false;
+    } catch (err) {
+      alert("Could not start audio recording: " + err);
     }
+  };
 
-    socket.on("message", function(data) {
-        const chatBox = document.getElementById("chat-box");
-        const msg = document.createElement("p");
-        msg.innerHTML = `<strong>${data.nickname}:</strong> ${data.text}`;
-        chatBox.appendChild(msg);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    });
+  stopBtn.onclick = () => {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+  };
 
-    socket.on("image", function(data) {
-        const chatBox = document.getElementById("chat-box");
-        const img = document.createElement("img");
-        img.src = data.image;
-        img.style.maxWidth = "200px";
-        const msg = document.createElement("p");
-        msg.innerHTML = `<strong>${data.nickname}:</strong><br>`;
-        msg.appendChild(img);
-        chatBox.appendChild(msg);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    });
+  // Socket events
+  socket.on("message", (data) => {
+    if (data.nickname === "System") {
+      addMessage(data, true);
+    } else {
+      addMessage(data);
+    }
+  });
 
-    socket.on("voice", function(data) {
-        const chatBox = document.getElementById("chat-box");
-        const audio = document.createElement("audio");
-        audio.src = data.audio;
-        audio.controls = true;
-        const msg = document.createElement("p");
-        msg.innerHTML = `<strong>${data.nickname}:</strong><br>`;
-        msg.appendChild(audio);
-        chatBox.appendChild(msg);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    });
+  socket.on("image", (data) => {
+    addMessage(data);
+  });
+
+  socket.on("voice", (data) => {
+    addMessage(data);
+  });
+
 </script>
-{% endblock %
+
+</body>
+      </html>
