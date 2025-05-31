@@ -1,142 +1,121 @@
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify
+from flask_socketio import SocketIO, emit
+from werkzeug.utils import secure_filename
 import os
-from flask import Flask, render_template, request
-from flask_sqlalchemy import SQLAlchemy
-from flask_socketio import SocketIO
-from dotenv import load_dotenv
-from http.cookiejar import MozillaCookieJar
-import requests
+from utils.scraper import download_video, fetch_lyrics
+from utils.ai_chat import get_ai_reply
+from datetime import datetime
 
-from scraper import (
-    search_songs, get_video, get_audio, get_lyrics, download_video
-)
-
-# Load environment variables
-load_dotenv()
-
+# App setup
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
-app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET") or "supersecretkey"
+socketio = SocketIO(app)
 
-db = SQLAlchemy(app)
-socketio = SocketIO(app, async_mode="eventlet")
+# Upload folders
+UPLOAD_FOLDER = 'static/uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
-# Load cookies from cookies.txt in Netscape format
-cookies_file = "cookies.txt"
-cookie_jar = MozillaCookieJar(cookies_file)
-try:
-    cookie_jar.load(ignore_discard=True, ignore_expires=True)
-    print("Cookies loaded successfully from cookies.txt")
-except FileNotFoundError:
-    print("cookies.txt file not found! Continuing without cookies.")
-except Exception as e:
-    print(f"Error loading cookies: {e}")
-
-# Create requests session with loaded cookies
-session = requests.Session()
-session.cookies = cookie_jar
-
-from database.models import Favorite  # Import models after db initialization
-
-
+# Home route — latest videos & audios listing
 @app.route('/')
-def index():
-    latest_releases = search_songs("latest", session=session)
-    return render_template("index.html", latest_releases=latest_releases)
+def home():
+    video_files = os.listdir('static/videos')
+    audio_files = os.listdir('static/audios')
+    return render_template('index.html', videos=video_files, audios=audio_files)
 
-
-@app.route('/about')
-def about():
-    return render_template("about.html")
-
-
-@app.route('/search', methods=["POST"])
+# Video/Audio search page
+@app.route('/search')
 def search():
-    query = request.form.get("query")
-    if not query:
-        return render_template("search.html", error="Please enter a search term.")
-    results = search_songs(query, session=session)
-    return render_template("search.html", results=results)
+    return render_template('search.html')
 
-
-@app.route('/play/audio')
-def play_audio():
-    query = request.args.get("query")
-    if not query:
-        return render_template("play_audio.html", error="No audio found.")
-    audio_data = get_audio(query, session=session)
-    return render_template("play_audio.html", audio=audio_data)
-
-
-@app.route('/play/video')
-def play_video():
-    query = request.args.get("query")
-    if not query:
-        return render_template("play_video.html", error="No video found.")
-    video_data = get_video(query, session=session)
-    return render_template("play_video.html", video=video_data)
-
-
-@app.route('/lyrics')
-def lyrics():
-    artist = request.args.get("artist")
-    song = request.args.get("song")
-    if not artist or not song:
-        return render_template("lyrics.html", error="Please enter both artist name and song title.")
-    lyrics_data = get_lyrics(f"{artist} - {song}", session=session)
-    return render_template("lyrics.html", lyrics=lyrics_data)
-
-
-@app.route('/download', methods=["POST"])
+# Download page
+@app.route('/download', methods=["GET", "POST"])
 def download():
-    video_url = request.form.get("video_url")
-    if not video_url:
-        return render_template("download.html", error="Invalid video URL.")
-    download_link = download_video(video_url, session=session)
-    return render_template("download.html", link=download_link)
+    video_url = ""
+    filename = ""
+    error = ""
 
-
-@app.route('/favorites', methods=["GET", "POST"])
-def favorites():
     if request.method == "POST":
-        user_id = request.form.get("user_id")
-        song_title = request.form.get("song_title")
-        song_url = request.form.get("song_url")
+        video_url = request.form.get("video_url")
+        try:
+            filename = download_video(video_url)
+        except Exception as e:
+            error = str(e)
 
-        if user_id and song_title and song_url:
-            favorite = Favorite(user_id=user_id, song_title=song_title, song_url=song_url)
-            db.session.add(favorite)
-            db.session.commit()
+    return render_template("download.html", video_url=video_url, filename=filename, error=error)
 
-    user_favorites = Favorite.query.all()
-    return render_template("favorites.html", favorites=user_favorites)
+# Video streaming route
+@app.route('/videos/<filename>')
+def serve_video(filename):
+    return send_from_directory('static/videos', filename)
 
+# Audio streaming route
+@app.route('/audios/<filename>')
+def serve_audio(filename):
+    return send_from_directory('static/audios', filename)
 
-# SocketIO events
+# Lyrics page
+@app.route('/lyrics', methods=["GET", "POST"])
+def lyrics():
+    lyrics_result = ""
+    if request.method == "POST":
+        track = request.form.get("track")
+        artist = request.form.get("artist")
+        lyrics_result = fetch_lyrics(track, artist)
+    return render_template("lyrics.html", lyrics=lyrics_result)
 
-users = {}
+# Chatroom page
+@app.route('/chatroom')
+def chatroom():
+    return render_template("chatroom.html")
 
-@socketio.on("join")
-def handle_join(nickname):
-    users[request.sid] = nickname
-    socketio.emit("message", {"nickname": "System", "text": f"{nickname} joined the chat!"})
+# FAQ page
+@app.route('/faq')
+def faq():
+    return render_template("faq.html")
 
-@socketio.on("message")
-def handle_message(data):
-    socketio.emit("message", data)
+# Contact page
+@app.route('/contact')
+def contact():
+    return render_template("contact.html")
 
-@socketio.on("image")
-def handle_image(data):
-    socketio.emit("image", data)
+# AI Chat page
+@app.route('/ai_chat', methods=["GET", "POST"])
+def ai_chat():
+    user_message = ""
+    ai_response = ""
 
-@socketio.on("voice")
-def handle_voice(data):
-    socketio.emit("voice", data)
+    if request.method == "POST":
+        user_message = request.form.get("user_message")
+        if user_message:
+            ai_response = get_ai_reply(user_message)
 
-@socketio.on("disconnect")
-def handle_disconnect():
-    nickname = users.pop(request.sid, "Unknown")
-    socketio.emit("message", {"nickname": "System", "text": f"{nickname} left the chat."})
+    return render_template("ai_chat.html", user_message=user_message, ai_response=ai_response)
 
+# Upload image or voice to chatroom
+@app.route('/upload', methods=["POST"])
+def upload():
+    file = request.files['file']
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        return jsonify({'file_url': f"/static/uploads/{filename}"})
+    return jsonify({'error': 'Upload failed'})
 
+# SocketIO real-time messaging
+@socketio.on('message')
+def handle_message(msg):
+    print(f"[{datetime.now()}] Message: {msg}")
+    emit('message', msg, broadcast=True)
+
+# AI auto reply in chatroom
+@socketio.on('ai_message')
+def handle_ai_message(data):
+    user_text = data.get('text')
+    ai_reply = get_ai_reply(user_text)
+    emit('ai_message', {'text': ai_reply}, broadcast=True)
+
+# Run the app
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
