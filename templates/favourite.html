@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Favorites | StreamMe</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <h1>❤️ My Favorite Songs</h1>
+    <ul>
+        {% for song in favorites %}
+            <li>
+                <a href="{{ song.song_url }}">{{ song.song_title }}</a> 
+                <form action="/comment" method="post">
+                    <input type="hidden" name="song_id" value="{{ song.id }}">
+                    <input type="text" name="text" placeholder="Leave a comment..." required>
+                    <button type="submit">Post</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html
