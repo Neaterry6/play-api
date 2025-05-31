@@ -1,19 +1,24 @@
 from flask import Flask, render_template, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_socketio import SocketIO
 import requests
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 from dotenv import load_dotenv
 import os
-from urllib.parse import quote as url_quote  # ✅ Fully Fixed Werkzeug Issue
 
-# Load environment variables
+# ✅ Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
+app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET")
+db = SQLAlchemy(app)
+socketio = SocketIO(app)
 
 # 🏠 Home Page
 @app.route('/')
 def index():
-    latest_releases = search_songs("latest")  # ✅ Removed incorrect 'cookies' argument
+    latest_releases = search_songs("latest")
     return render_template("index.html", latest_releases=latest_releases)
 
 # ℹ️ About Page
@@ -28,10 +33,10 @@ def search():
     if not query:
         return render_template("search.html", error="Please enter a search term.")
     
-    results = search_songs(query)  # ✅ Ensures correct argument passing
+    results = search_songs(query)
     return render_template("search.html", results=results)
 
-# 🎵 Play Audio Page
+# 🎵 Play Audio Page (With Effects & Speed Control)
 @app.route('/play/audio')
 def play_audio():
     query = request.args.get("query")
@@ -41,7 +46,7 @@ def play_audio():
     audio_data = get_audio(query)
     return render_template("play_audio.html", audio=audio_data)
 
-# 🎥 Play Video Page
+# 🎥 Play Video Page (With Speed Control)
 @app.route('/play/video')
 def play_video():
     query = request.args.get("query")
@@ -51,7 +56,7 @@ def play_video():
     video_data = get_video(query)
     return render_template("play_video.html", video=video_data)
 
-# 📜 Lyrics Page (Using Lyrics.ovh API)
+# 📜 Lyrics Page
 @app.route('/lyrics')
 def lyrics():
     artist = request.args.get("artist")
@@ -60,18 +65,10 @@ def lyrics():
     if not artist or not song:
         return render_template("lyrics.html", error="Please enter both artist name and song title.")
 
-    api_url = f"https://api.lyrics.ovh/v1/{artist}/{song}"
-    response = requests.get(api_url)
-
-    if response.status_code == 200:
-        data = response.json()
-        lyrics_data = data.get("lyrics", "Lyrics not found.")
-    else:
-        lyrics_data = "Lyrics not found or API request failed."
-
+    lyrics_data = get_lyrics(f"{artist} - {song}")
     return render_template("lyrics.html", lyrics=lyrics_data)
 
-# ⬇️ Universal Video Downloader Route
+# ⬇️ Video Downloader Route
 @app.route('/download', methods=["POST"])
 def download():
     video_url = request.form.get("video_url")
@@ -81,6 +78,41 @@ def download():
     download_link = download_video(video_url)
     return render_template("download.html", link=download_link)
 
+# ❤️ Favorites Page
+@app.route('/favorites', methods=["GET", "POST"])
+def favorites():
+    from models import Favorite
+
+    if request.method == "POST":
+        user_id = request.form.get("user_id")
+        song_title = request.form.get("song_title")
+        song_url = request.form.get("song_url")
+
+        if user_id and song_title and song_url:
+            favorite = Favorite(user_id=user_id, song_title=song_title, song_url=song_url)
+            db.session.add(favorite)
+            db.session.commit()
+    
+    user_favorites = Favorite.query.all()
+    return render_template("favorites.html", favorites=user_favorites)
+
+# 💬 Chatroom Functionality
+users = {}
+
+@socketio.on("join")
+def handle_join(nickname):
+    users[request.sid] = nickname
+    socketio.emit("message", {"nickname": "System", "text": f"{nickname} joined the chat!"})
+
+@socketio.on("message")
+def handle_message(data):
+    socketio.emit("message", data)
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    nickname = users.pop(request.sid, "Unknown")
+    socketio.emit("message", {"nickname": "System", "text": f"{nickname} left the chat."})
+
 # 🚀 Run Flask App
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
