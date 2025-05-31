@@ -1,24 +1,28 @@
 import os
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
 from dotenv import load_dotenv
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 
+# Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL") or "sqlite:///streamme.db"
 app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET") or "supersecretkey"
 
 db = SQLAlchemy(app)
-socketio = SocketIO(app, async_mode="eventlet")
+socketio = SocketIO(app, async_mode="eventlet")  # Requires eventlet package
 
-from database.models import Favorite
+# Import models after initializing db to avoid circular import
+from database.models import Favorite  # Adjust path if needed
+
+# ----- Routes -----
 
 @app.route('/')
 def index():
-    latest_releases = search_songs("latest")
+    latest_releases = search_songs("latest")  # Should return list of latest songs/videos
     return render_template("index.html", latest_releases=latest_releases)
 
 @app.route('/about')
@@ -37,17 +41,17 @@ def search():
 def play_audio():
     query = request.args.get("query")
     if not query:
-        return render_template("play_audio.html", error="No audio found.")
+        return render_template("audio.html", error="No audio found.")
     audio_data = get_audio(query)
-    return render_template("play_audio.html", audio=audio_data)
+    return render_template("audio.html", audio=audio_data)
 
 @app.route('/play/video')
 def play_video():
     query = request.args.get("query")
     if not query:
-        return render_template("play_video.html", error="No video found.")
+        return render_template("video.html", error="No video found.")
     video_data = get_video(query)
-    return render_template("play_video.html", video=video_data)
+    return render_template("video.html", video=video_data)
 
 @app.route('/lyrics')
 def lyrics():
@@ -58,21 +62,15 @@ def lyrics():
     lyrics_data = get_lyrics(f"{artist} - {song}")
     return render_template("lyrics.html", lyrics=lyrics_data)
 
-@app.route('/download', methods=["GET", "POST"])
+@app.route('/download', methods=["POST"])
 def download():
-    if request.method == "POST":
-        video_url = request.form.get("video_url")
-        if not video_url:
-            return render_template("download.html", error="Please provide a valid video URL.")
-
-        file_path = download_video(video_url)
-        if not file_path:
-            return render_template("download.html", error="Failed to download video.")
-        
-        # Send the file for download to user
-        return send_file(file_path, as_attachment=True)
-
-    return render_template("download.html")
+    video_url = request.form.get("video_url")
+    if not video_url:
+        return render_template("download.html", error="Invalid video URL.")
+    download_link = download_video(video_url)
+    if not download_link:
+        return render_template("download.html", error="Failed to generate download link.")
+    return render_template("download.html", link=download_link)
 
 @app.route('/favorites', methods=["GET", "POST"])
 def favorites():
@@ -80,14 +78,14 @@ def favorites():
         user_id = request.form.get("user_id")
         song_title = request.form.get("song_title")
         song_url = request.form.get("song_url")
-
         if user_id and song_title and song_url:
             favorite = Favorite(user_id=user_id, song_title=song_title, song_url=song_url)
             db.session.add(favorite)
             db.session.commit()
-
     user_favorites = Favorite.query.all()
     return render_template("favorites.html", favorites=user_favorites)
+
+# ----- SocketIO Events -----
 
 users = {}
 
@@ -102,16 +100,20 @@ def handle_message(data):
 
 @socketio.on("image")
 def handle_image(data):
+    # data contains 'nickname' and 'image' (base64 string)
     socketio.emit("image", data)
 
 @socketio.on("voice")
 def handle_voice(data):
+    # data contains 'nickname' and 'audio' (base64 string)
     socketio.emit("voice", data)
 
 @socketio.on("disconnect")
 def handle_disconnect():
     nickname = users.pop(request.sid, "Unknown")
     socketio.emit("message", {"nickname": "System", "text": f"{nickname} left the chat."})
+
+# ----- Run app -----
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
