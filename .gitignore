@@ -1,0 +1,31 @@
+# Python Cache & Environment Files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+
+# Virtual Environment Files
+*.venv
+Pipfile
+Pipfile.lock
+
+# Database Files
+*.sqlite
+*.db
+migrations/
+
+# Logs & Temporary Files
+*.log
+debug.log
+
+# IDE & System Files
+.vscode/
+.idea/
+.DS_Store
+
+# Deployment Configurations
+render.yaml
+vercel.json
+Procfil
