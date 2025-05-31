@@ -2,7 +2,6 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Avoid interactive install issues
 ENV PYTHONUNBUFFERED=1
 
 COPY requirements.txt .
