@@ -1,16 +1,16 @@
-# ✅ Use official lightweight Python base image
+# ✅ Use lightweight Python base image
 FROM python:3.10-slim
 
 # ✅ Set working directory inside the container
 WORKDIR /app
 
-# ✅ Copy entire project into the container
+# ✅ Copy all project files into the container
 COPY . /app
 
-# ✅ Install required system dependencies for PostgreSQL support
+# ✅ Install required system dependencies (PostgreSQL client for psycopg2)
 RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
 
-# ✅ Install project dependencies
+# ✅ Install Python dependencies (Without caching for cleaner build)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ✅ Expose Flask default port
