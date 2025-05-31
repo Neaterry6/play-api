@@ -2,10 +2,10 @@ from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
 import requests
+from urllib.parse import quote as url_quote  # ✅ Fixed Werkzeug Import Issue
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 from dotenv import load_dotenv
 import os
-from urllib.parse import quote as url_quote  # ✅ Fixed Werkzeug issue
 
 # ✅ Load environment variables
 load_dotenv()
@@ -14,7 +14,7 @@ app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET")
 db = SQLAlchemy(app)
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode="eventlet")  # ✅ Ensuring Real-Time Chat Compatibility
 
 # 🏠 Home Page
 @app.route('/')
