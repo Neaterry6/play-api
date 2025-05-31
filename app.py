@@ -8,6 +8,7 @@ app = Flask(__name__)
 COOKIES_PATH = "cookies.txt"
 
 def get_cookie_header():
+    """Reads and returns Netscape cookies for authentication"""
     try:
         with open(COOKIES_PATH, "r") as f:
             cookies = f.read().strip()
@@ -57,7 +58,7 @@ def play_video():
     video_data = get_video(query, cookies=get_cookie_header())
     return render_template("play_video.html", video=video_data)
 
-# 📜 Lyrics Page (Using Lyrics.ovh API)
+# 📜 Lyrics Page (Uses Lyrics.ovh API)
 @app.route('/lyrics')
 def lyrics():
     artist = request.args.get("artist")
