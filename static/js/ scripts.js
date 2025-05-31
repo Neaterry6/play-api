@@ -1,12 +1,12 @@
 document.addEventListener("DOMContentLoaded", function () {
     console.log("StreamMe JS loaded! 🚀");
 
-    // ✅ Back Button Functionality
+    // ====== Back Button Functionality ======
     document.getElementById("backButton")?.addEventListener("click", function () {
         window.history.back();
     });
 
-    // ✅ Video Playback Speed Control
+    // ====== Video Playback Speed Control ======
     const videoPlayer = document.getElementById("videoPlayer");
     const videoSpeed = document.getElementById("videoSpeed");
 
@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // ✅ Audio Playback Speed Control
+    // ====== Audio Playback Speed Control ======
     const audioPlayer = document.getElementById("audioPlayer");
     const playbackSpeed = document.getElementById("playbackSpeed");
 
@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // ✅ Audio Effects Handling (Reverb, Echo)
+    // ====== Audio Effects Handling (Reverb, Echo) ======
     const soundEffect = document.getElementById("soundEffect");
 
     if (audioPlayer && soundEffect) {
@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // ✅ Search Functionality
+    // ====== Search Functionality ======
     document.getElementById("searchForm")?.addEventListener("submit", function (event) {
         event.preventDefault();
         let query = document.getElementById("searchInput").value.trim();
@@ -53,34 +53,164 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // ✅ Chatroom Messaging
+    // ====== Chatroom Messaging with Image & Voice Note Support ======
     const socket = io();
     let nickname = "";
 
-    document.getElementById("nicknameSet")?.addEventListener("click", function () {
-        nickname = document.getElementById("nickname").value.trim();
-        if (nickname) {
-            socket.emit("join", nickname);
-            document.getElementById("nickname").disabled = true;
+    // Cache DOM elements for chatroom
+    const nicknameInput = document.getElementById("nickname");
+    const nicknameSetBtn = document.getElementById("nicknameSet");
+    const messageInput = document.getElementById("message");
+    const sendMessageBtn = document.getElementById("sendMessage");
+    const chatBox = document.getElementById("chat-box");
+    const imageUploadInput = document.getElementById("image-upload");
+    const recordBtn = document.getElementById("record-btn");
+
+    // Voice recording variables
+    let mediaRecorder;
+    let audioChunks = [];
+
+    // Set nickname and join chat
+    nicknameSetBtn?.addEventListener("click", function () {
+        const nick = nicknameInput.value.trim();
+        if (!nick) {
+            alert("Please enter a nickname!");
+            return;
+        }
+        nickname = nick;
+        socket.emit("join", nickname);
+        nicknameInput.disabled = true;
+        nicknameSetBtn.disabled = true;
+        messageInput.disabled = false;
+        sendMessageBtn.disabled = false;
+        if (imageUploadInput) imageUploadInput.disabled = false;
+        if (recordBtn) recordBtn.disabled = false;
+    });
+
+    // Send text message
+    sendMessageBtn?.addEventListener("click", function () {
+        sendTextMessage();
+    });
+
+    // Also send message on Enter key in message input
+    messageInput?.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            sendTextMessage();
         }
     });
 
-    document.getElementById("sendMessage")?.addEventListener("click", function () {
-        let message = document.getElementById("message").value.trim();
-        if (message) {
-            socket.emit("message", { nickname: nickname, text: message });
-            document.getElementById("message").value = "";
-        }
-    });
+    function sendTextMessage() {
+        const text = messageInput.value.trim();
+        if (!text) return;
+        socket.emit("message", { nickname, text });
+        messageInput.value = "";
+    }
 
+    // Receive text message
     socket.on("message", function (data) {
-        let chatBox = document.getElementById("chat-box");
-        let msg = document.createElement("p");
-        msg.innerHTML = `<strong>${data.nickname}:</strong> ${data.text}`;
-        chatBox.appendChild(msg);
+        addMessage(data.nickname, data.text);
     });
 
-    // ✅ Favorites Management
+    // Receive image message
+    socket.on("image", function (data) {
+        addImage(data.nickname, data.image);
+    });
+
+    // Receive voice note
+    socket.on("voice", function (data) {
+        addVoiceNote(data.nickname, data.audio);
+    });
+
+    // Add message to chatbox (text)
+    function addMessage(user, text) {
+        const msg = document.createElement("p");
+        msg.innerHTML = `<strong>${escapeHtml(user)}:</strong> ${escapeHtml(text)}`;
+        chatBox.appendChild(msg);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Add image message to chatbox
+    function addImage(user, base64Image) {
+        const msg = document.createElement("p");
+        msg.innerHTML = `<strong>${escapeHtml(user)}:</strong><br><img src="${base64Image}" alt="image" style="max-width: 250px; max-height: 250px; border-radius: 8px;">`;
+        chatBox.appendChild(msg);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Add voice note to chatbox
+    function addVoiceNote(user, base64Audio) {
+        const msg = document.createElement("p");
+        msg.innerHTML = `<strong>${escapeHtml(user)}:</strong><br><audio controls src="${base64Audio}"></audio>`;
+        chatBox.appendChild(msg);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Image upload handler
+    imageUploadInput?.addEventListener("change", function (event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            socket.emit("image", { nickname, image: e.target.result });
+        };
+        reader.readAsDataURL(file);
+
+        // Reset input so same image can be uploaded again if needed
+        event.target.value = "";
+    });
+
+    // Voice recording toggle
+    recordBtn?.addEventListener("click", function () {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+            recordBtn.textContent = "Start Recording";
+        } else {
+            startRecording();
+            recordBtn.textContent = "Stop Recording";
+        }
+    });
+
+    function startRecording() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Your browser does not support audio recording.");
+            return;
+        }
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.addEventListener("dataavailable", event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener("stop", () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        socket.emit("voice", { nickname, audio: e.target.result });
+                    };
+                    reader.readAsDataURL(audioBlob);
+                });
+
+                mediaRecorder.start();
+            })
+            .catch(err => {
+                alert("Could not start audio recording: " + err);
+            });
+    }
+
+    // Escape HTML to prevent XSS attacks
+    function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ====== Favorites Management ======
     document.querySelectorAll(".addFavorite").forEach(button => {
         button.addEventListener("click", function () {
             let songTitle = this.dataset.title;
@@ -98,7 +228,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 
-    // ✅ Comment Submission
+    // ====== Comment Submission ======
     document.querySelectorAll(".commentForm").forEach(form => {
         form.addEventListener("submit", function (event) {
             event.preventDefault();
