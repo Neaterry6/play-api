@@ -1,5 +1,6 @@
 import requests
 import yt_dlp
+from urllib.parse import quote as url_quote  # ✅ Safe query encoding
 
 COOKIES_PATH = "cookies.txt"
 SEARCH_URL = "https://www.youtube.com/results?search_query="
@@ -21,7 +22,8 @@ def load_cookies():
 # 🔍 Improved YouTube search function
 def search_songs(query):
     cookies = load_cookies()
-    response = requests.get(SEARCH_URL + query, cookies=cookies).text
+    encoded_query = url_quote(query)
+    response = requests.get(SEARCH_URL + encoded_query, cookies=cookies).text
     results = []  # TODO: Parse actual search results from YouTube
     return results if results else [{"title": "No results found", "video_url": "#"}]
 
