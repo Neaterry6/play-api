@@ -1,17 +1,10 @@
-#!/bin/bash
+#!/bin/sh
 
-echo "🚀 Starting StreamMe application..."
-
-# Activate virtual environment (if using one)
-if [ -d "venv" ]; then
-    echo "🔄 Activating virtual environment..."
-    source venv/bin/activate
+# Load environment variables from .env file
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
 fi
 
-# Install required dependencies
-echo "📦 Installing dependencies..."
-pip install -r requirements.txt
+echo "Starting Gunicorn with eventlet worker..."
 
-# Run Flask application
-echo "✅ Running Flask server..."
-python app.p
+exec gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:5000 app:app
