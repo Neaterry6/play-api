@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
 import requests
-from urllib.parse import quote as url_quote  # ✅ Fixed Werkzeug Import Issue
+from urllib.parse import quote as url_quote  # ✅ Standard Python URL encoder
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 from dotenv import load_dotenv
 import os
@@ -14,7 +14,7 @@ app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET")
 db = SQLAlchemy(app)
-socketio = SocketIO(app, async_mode="eventlet")  # ✅ Ensuring Real-Time Chat Compatibility
+socketio = SocketIO(app, async_mode="eventlet")  # ✅ Real-Time Chat Support
 
 # 🏠 Home Page
 @app.route('/')
@@ -37,7 +37,7 @@ def search():
     results = search_songs(query)
     return render_template("search.html", results=results)
 
-# 🎵 Play Audio Page (With Effects & Speed Control)
+# 🎵 Play Audio Page
 @app.route('/play/audio')
 def play_audio():
     query = request.args.get("query")
@@ -47,7 +47,7 @@ def play_audio():
     audio_data = get_audio(query)
     return render_template("play_audio.html", audio=audio_data)
 
-# 🎥 Play Video Page (With Speed Control)
+# 🎥 Play Video Page
 @app.route('/play/video')
 def play_video():
     query = request.args.get("query")
@@ -69,7 +69,7 @@ def lyrics():
     lyrics_data = get_lyrics(f"{artist} - {song}")
     return render_template("lyrics.html", lyrics=lyrics_data)
 
-# ⬇️ Video Downloader Route
+# ⬇️ Video Downloader
 @app.route('/download', methods=["POST"])
 def download():
     video_url = request.form.get("video_url")
@@ -97,7 +97,7 @@ def favorites():
     user_favorites = Favorite.query.all()
     return render_template("favorites.html", favorites=user_favorites)
 
-# 💬 Real-Time Chatroom Functionality
+# 💬 Real-Time Chatroom
 users = {}
 
 @socketio.on("join")
@@ -114,6 +114,6 @@ def handle_disconnect():
     nickname = users.pop(request.sid, "Unknown")
     socketio.emit("message", {"nickname": "System", "text": f"{nickname} left the chat."})
 
-# 🚀 Run Flask App
+# 🚀 Run App
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
