@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Video Player | StreamMe</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="video-container">
+        <h1>🎬 Now Playing</h1>
+        {% if video %}
+            <h2>{{ video.title }}</h2>
+            <video id="videoPlayer" controls>
+                <source src="{{ video.video_url }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        {% else %}
+            <p style="color: red;">No video found.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
