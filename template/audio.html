@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Audio Player | StreamMe</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="player-container">
+        <h1>🎵 Now Playing</h1>
+        {% if audio %}
+            <h2>{{ audio.title }}</h2>
+            <audio id="audioPlayer" controls>
+                <source src="{{ audio.audio_url }}" type="audio/mp3">
+                Your browser does not support the audio element.
+            </audio>
+        {% else %}
+            <p style="color: red;">No audio found.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
