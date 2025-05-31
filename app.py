@@ -1,26 +1,31 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 
-# Load Netscape cookies for YouTube authentication
-COOKIES_PATH = "cookies.txt"
+# Load YouTube Netscape Cookies from environment settings
+COOKIES_PATH = os.getenv("COOKIES_PATH", "cookies.txt")
 
 def get_cookie_header():
-    """Reads and returns Netscape cookies for authentication"""
+    """Load cookies for authentication."""
     try:
         with open(COOKIES_PATH, "r") as f:
             cookies = f.read().strip()
         return {"Cookie": cookies}
     except FileNotFoundError:
-        print("⚠️ Cookies file not found. Make sure 'cookies.txt' exists!")
+        print("⚠️ Cookies file not found. Some features may not work.")
         return {}
 
-# 🏠 Home Page - Display latest releases
+# 🏠 Home Page
 @app.route('/')
 def index():
-    latest_releases = search_songs("latest", cookies=get_cookie_header())
+    latest_releases = search_songs("latest")
     return render_template("index.html", latest_releases=latest_releases)
 
 # ℹ️ About Page
@@ -35,7 +40,7 @@ def search():
     if not query:
         return render_template("search.html", error="Please enter a search term.")
     
-    results = search_songs(query, cookies=get_cookie_header())
+    results = search_songs(query)
     return render_template("search.html", results=results)
 
 # 🎵 Play Audio Page
@@ -45,7 +50,7 @@ def play_audio():
     if not query:
         return render_template("play_audio.html", error="No audio found.")
     
-    audio_data = get_audio(query, cookies=get_cookie_header())
+    audio_data = get_audio(query)
     return render_template("play_audio.html", audio=audio_data)
 
 # 🎥 Play Video Page
@@ -55,10 +60,10 @@ def play_video():
     if not query:
         return render_template("play_video.html", error="No video found.")
     
-    video_data = get_video(query, cookies=get_cookie_header())
+    video_data = get_video(query)
     return render_template("play_video.html", video=video_data)
 
-# 📜 Lyrics Page (Uses Lyrics.ovh API)
+# 📜 Lyrics Page (Using Lyrics.ovh API)
 @app.route('/lyrics')
 def lyrics():
     artist = request.args.get("artist")
@@ -78,16 +83,16 @@ def lyrics():
 
     return render_template("lyrics.html", lyrics=lyrics_data)
 
-# ⬇️ Download Page
+# ⬇️ Universal Video Downloader Route
 @app.route('/download', methods=["POST"])
 def download():
     video_url = request.form.get("video_url")
     if not video_url:
         return render_template("download.html", error="Invalid video URL.")
     
-    download_link = download_video(video_url, cookies=get_cookie_header())
+    download_link = download_video(video_url)
     return render_template("download.html", link=download_link)
 
 # 🚀 Run Flask App
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=10000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
