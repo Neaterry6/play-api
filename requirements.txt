@@ -1,10 +1,10 @@
 Flask==3.0.3
-Flask-SocketIO==5.3.6
 Flask-SQLAlchemy==3.1.1
-eventlet==0.36.1
-gunicorn==22.0.0
+Flask-Migrate==4.0.5
+Flask-SocketIO==5.3.6
 requests==2.31.0
-yt-dlp==2024.04.09
+beautifulsoup4==4.12.3
+gunicorn==22.0.0
+eventlet==0.36.1
+psycopg2-binary==2.9.9
 python-dotenv==1.0.1
-SQLAlchemy==2.0.30
-Werkzeug==3.0.2
