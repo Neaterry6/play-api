@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Welcome</title>
-    <link rel="stylesheet" href="static/styles.css">
+    <title>Welcome to Play API</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    <nav>
+        <a href="/">🏠 Home</a> |
+        <a href="/search">🔍 Search</a> |
+        <a href="/play/audio">🎵 Play Audio</a> |
+        <a href="/play/video">🎥 Play Video</a> |
+        <a href="/lyrics">📜 Lyrics</a> |
+        <a href="/download">⬇️ Download</a> |
+        <a href="/about">ℹ️ About</a>
+    </nav>
+
     <h1>🎵 Welcome to Play API 🎵</h1>
     <button onclick="window.location.href='/search'">Search Songs 🔍</button>
     <button onclick="window.location.href='/download'">Download Video ⬇️</button>
 </body>
-</html
+</html>
