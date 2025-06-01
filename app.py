@@ -1,134 +1,119 @@
-from flask import Flask, render_template, request, send_from_directory, jsonify, url_for
-from flask_socketio import SocketIO, emit
-from werkzeug.utils import secure_filename
+from flask import Flask, render_template, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_socketio import SocketIO
+import requests
+from urllib.parse import quote as url_quote  # ✅ Fixed Werkzeug Import Issue
+from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
+from dotenv import load_dotenv
 import os
-from utils.scraper import download_video, get_lyrics
-from utils.ai_chat import get_ai_reply
-from datetime import datetime
 
-# App setup
+# ✅ Load environment variables
+load_dotenv()
+
 app = Flask(__name__)
-socketio = SocketIO(app)
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
+app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET")
+db = SQLAlchemy(app)
+socketio = SocketIO(app, async_mode="eventlet")  # ✅ Ensuring Real-Time Chat Compatibility
 
-# Upload & media folders
-UPLOAD_FOLDER = 'static/uploads'
-VIDEOS_FOLDER = 'static/videos'
-AUDIOS_FOLDER = 'static/audios'
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Create folders if not exist
-for folder in [UPLOAD_FOLDER, VIDEOS_FOLDER, AUDIOS_FOLDER]:
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-# Home route — list videos & audios
+# 🏠 Home Page
 @app.route('/')
-def home():
-    video_files = os.listdir(VIDEOS_FOLDER)
-    audio_files = os.listdir(AUDIOS_FOLDER)
-    return render_template('index.html', videos=video_files, audios=audio_files)
+def index():
+    latest_releases = search_songs("latest")
+    return render_template("index.html", latest_releases=latest_releases)
 
-# Video/Audio search page
-@app.route('/search')
+# ℹ️ About Page
+@app.route('/about')
+def about():
+    return render_template("about.html")
+
+# 🔍 Search Page
+@app.route('/search', methods=["POST"])
 def search():
-    return render_template('search.html')
+    query = request.form.get("query")
+    if not query:
+        return render_template("search.html", error="Please enter a search term.")
+    
+    results = search_songs(query)
+    return render_template("search.html", results=results)
 
-# Download page — handle video URL downloads
-@app.route('/download', methods=["GET", "POST"])
-def download():
-    video_url = ""
-    filename = ""
-    error = ""
+# 🎵 Play Audio Page (With Effects & Speed Control)
+@app.route('/play/audio')
+def play_audio():
+    query = request.args.get("query")
+    if not query:
+        return render_template("play_audio.html", error="No audio found.")
+    
+    audio_data = get_audio(query)
+    return render_template("play_audio.html", audio=audio_data)
 
-    if request.method == "POST":
-        video_url = request.form.get("video_url")
-        if not video_url:
-            error = "Please provide a video URL."
-        else:
-            try:
-                filename = download_video(video_url, output_dir=VIDEOS_FOLDER)
-            except Exception as e:
-                error = f"Failed to download: {str(e)}"
+# 🎥 Play Video Page (With Speed Control)
+@app.route('/play/video')
+def play_video():
+    query = request.args.get("query")
+    if not query:
+        return render_template("play_video.html", error="No video found.")
+    
+    video_data = get_video(query)
+    return render_template("play_video.html", video=video_data)
 
-    return render_template("download.html", video_url=video_url, filename=filename, error=error)
-
-# Serve downloaded video files
-@app.route('/videos/<filename>')
-def serve_video(filename):
-    return send_from_directory(VIDEOS_FOLDER, filename)
-
-# Serve downloaded audio files
-@app.route('/audios/<filename>')
-def serve_audio(filename):
-    return send_from_directory(AUDIOS_FOLDER, filename)
-
-# Lyrics page
-@app.route('/lyrics', methods=["GET", "POST"])
+# 📜 Lyrics Page
+@app.route('/lyrics')
 def lyrics():
-    lyrics_result = ""
-    if request.method == "POST":
-        track = request.form.get("track")
-        artist = request.form.get("artist")
-        if not track:
-            lyrics_result = "Please enter the track name."
-        else:
-            query = f"{artist} - {track}" if artist else track
-            lyrics_result = get_lyrics(query)
-    return render_template("lyrics.html", lyrics=lyrics_result)
+    artist = request.args.get("artist")
+    song = request.args.get("song")
 
-# Chatroom page
-@app.route('/chatroom')
-def chatroom():
-    return render_template("chatroom.html")
+    if not artist or not song:
+        return render_template("lyrics.html", error="Please enter both artist name and song title.")
 
-# FAQ page
-@app.route('/faq')
-def faq():
-    return render_template("faq.html")
+    lyrics_data = get_lyrics(f"{artist} - {song}")
+    return render_template("lyrics.html", lyrics=lyrics_data)
 
-# Contact page
-@app.route('/contact')
-def contact():
-    return render_template("contact.html")
+# ⬇️ Video Downloader Route
+@app.route('/download', methods=["POST"])
+def download():
+    video_url = request.form.get("video_url")
+    if not video_url:
+        return render_template("download.html", error="Invalid video URL.")
+    
+    download_link = download_video(video_url)
+    return render_template("download.html", link=download_link)
 
-# AI Chat page
-@app.route('/ai_chat', methods=["GET", "POST"])
-def ai_chat():
-    user_message = ""
-    ai_response = ""
+# ❤️ Favorites Page
+@app.route('/favorites', methods=["GET", "POST"])
+def favorites():
+    from models import Favorite
 
     if request.method == "POST":
-        user_message = request.form.get("user_message")
-        if user_message:
-            ai_response = get_ai_reply(user_message)
+        user_id = request.form.get("user_id")
+        song_title = request.form.get("song_title")
+        song_url = request.form.get("song_url")
 
-    return render_template("ai_chat.html", user_message=user_message, ai_response=ai_response)
+        if user_id and song_title and song_url:
+            favorite = Favorite(user_id=user_id, song_title=song_title, song_url=song_url)
+            db.session.add(favorite)
+            db.session.commit()
+    
+    user_favorites = Favorite.query.all()
+    return render_template("favorites.html", favorites=user_favorites)
 
-# Upload images/audio to chatroom
-@app.route('/upload', methods=["POST"])
-def upload():
-    file = request.files.get('file')
-    if file:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        return jsonify({'file_url': f"/static/uploads/{filename}"})
-    return jsonify({'error': 'Upload failed'})
+# 💬 Real-Time Chatroom Functionality
+users = {}
 
-# SocketIO real-time messaging
-@socketio.on('message')
-def handle_message(msg):
-    print(f"[{datetime.now()}] Message: {msg}")
-    emit('message', msg, broadcast=True)
+@socketio.on("join")
+def handle_join(nickname):
+    users[request.sid] = nickname
+    socketio.emit("message", {"nickname": "System", "text": f"{nickname} joined the chat!"})
 
-# AI auto-reply in chatroom
-@socketio.on('ai_message')
-def handle_ai_message(data):
-    user_text = data.get('text')
-    ai_reply = get_ai_reply(user_text)
-    emit('ai_message', {'text': ai_reply}, broadcast=True)
+@socketio.on("message")
+def handle_message(data):
+    socketio.emit("message", data)
 
-# Run the app
-if __name__ == "__main__":
+@socketio.on("disconnect")
+def handle_disconnect():
+    nickname = users.pop(request.sid, "Unknown")
+    socketio.emit("message", {"nickname": "System", "text": f"{nickname} left the chat."})
+
+# 🚀 Run Flask App
+if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
