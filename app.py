@@ -25,13 +25,29 @@ socketio = SocketIO(app, async_mode="eventlet")
 # 🏠 Home Page
 @app.route('/')
 def index():
-    latest_releases = search_songs("latest")
-    return render_template("index.html", latest_releases=latest_releases)
+    latest_videos = search_songs("latest_videos")
+    latest_audios = search_songs("latest_audios")
+    return render_template("index.html", latest_videos=latest_videos, latest_audios=latest_audios)
 
 # ℹ️ About Page
 @app.route('/about')
 def about():
     return render_template("about.html")
+
+# ❔ FAQ Page
+@app.route('/faq')
+def faq():
+    return render_template("faq.html")
+
+# 📩 Contact Page
+@app.route('/contact')
+def contact():
+    return render_template("contact.html")
+
+# 🤖 AI Chat Feature (if implemented)
+@app.route('/ai_chat')
+def ai_chat():
+    return render_template("ai_chat.html")
 
 # 🔍 Search Songs Page
 @app.route('/search', methods=["GET", "POST"])
@@ -44,23 +60,35 @@ def search():
         return render_template("search.html", results=results)
     return render_template("search.html")
 
+# 🎵 Dedicated Audio Page
+@app.route('/audio')
+def audio():
+    latest_audios = search_songs("latest_audios")
+    return render_template("audio.html", latest_audios=latest_audios)
+
+# 🎥 Dedicated Video Page
+@app.route('/video')
+def video():
+    latest_videos = search_songs("latest_videos")
+    return render_template("video.html", latest_videos=latest_videos)
+
 # 🎵 Play Audio Page
 @app.route('/play/audio')
 def play_audio():
     query = request.args.get("query")
     if not query:
-        return render_template("paudio.html", error="No audio found.")
+        return render_template("play_audio.html", error="No audio found.")
     audio_data = get_audio(query)
-    return render_template("audio.html", audio=audio_data)
+    return render_template("play_audio.html", audio=audio_data)
 
 # 🎥 Play Video Page
 @app.route('/play/video')
 def play_video():
     query = request.args.get("query")
     if not query:
-        return render_template("video.html", error="No video found.")
+        return render_template("play_video.html", error="No video found.")
     video_data = get_video(query)
-    return render_template("video.html", video=video_data)
+    return render_template("play_video.html", video=video_data)
 
 # 📜 Lyrics Page
 @app.route('/lyrics')
@@ -86,7 +114,7 @@ def download():
 # ❤️ Favorites Page
 @app.route('/favorites', methods=["GET", "POST"])
 def favorites():
-    from models import Favorite  # local import to avoid circular dependency
+    from models import Favorite  # Local import to avoid circular dependency
 
     if request.method == "POST":
         user_id = request.form.get("user_id")
@@ -102,6 +130,10 @@ def favorites():
 
 # 💬 Real-Time Chatroom
 users = {}
+
+@app.route('/chatroom')
+def chatroom():
+    return render_template("chatroom.html")
 
 @socketio.on("join")
 def handle_join(nickname):
