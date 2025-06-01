@@ -1,8 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify
+from flask import Flask, render_template, request, send_from_directory, jsonify
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 import os
-from utils.scraper import download_video, fetch_lyrics
+from utils.scraper import download_video, get_lyrics  # <-- fixed import, your scraper uses get_lyrics, not fetch_lyrics
 from utils.ai_chat import get_ai_reply
 from datetime import datetime
 
@@ -12,15 +12,22 @@ socketio = SocketIO(app)
 
 # Upload folders
 UPLOAD_FOLDER = 'static/uploads'
+VIDEOS_FOLDER = 'static/videos'
+AUDIOS_FOLDER = 'static/audios'
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+if not os.path.exists(VIDEOS_FOLDER):
+    os.makedirs(VIDEOS_FOLDER)
+if not os.path.exists(AUDIOS_FOLDER):
+    os.makedirs(AUDIOS_FOLDER)
 
-# Home route — latest videos & audios listing
+# Home route — list downloaded videos & audios
 @app.route('/')
 def home():
-    video_files = os.listdir('static/videos')
-    audio_files = os.listdir('static/audios')
+    video_files = os.listdir(VIDEOS_FOLDER)
+    audio_files = os.listdir(AUDIOS_FOLDER)
     return render_template('index.html', videos=video_files, audios=audio_files)
 
 # Video/Audio search page
@@ -28,7 +35,7 @@ def home():
 def search():
     return render_template('search.html')
 
-# Download page
+# Download page (download video and save to static/videos)
 @app.route('/download', methods=["GET", "POST"])
 def download():
     video_url = ""
@@ -37,31 +44,40 @@ def download():
 
     if request.method == "POST":
         video_url = request.form.get("video_url")
-        try:
-            filename = download_video(video_url)
-        except Exception as e:
-            error = str(e)
+        if not video_url:
+            error = "Please provide a video URL."
+        else:
+            try:
+                # download_video() should save the file in static/videos folder
+                # So override the output path inside download_video to VIDEOS_FOLDER
+                filename = download_video(video_url, output_dir=VIDEOS_FOLDER)
+            except Exception as e:
+                error = str(e)
 
     return render_template("download.html", video_url=video_url, filename=filename, error=error)
 
-# Video streaming route
+# Serve downloaded videos
 @app.route('/videos/<filename>')
 def serve_video(filename):
-    return send_from_directory('static/videos', filename)
+    return send_from_directory(VIDEOS_FOLDER, filename)
 
-# Audio streaming route
+# Serve downloaded audios
 @app.route('/audios/<filename>')
 def serve_audio(filename):
-    return send_from_directory('static/audios', filename)
+    return send_from_directory(AUDIOS_FOLDER, filename)
 
-# Lyrics page
+# Lyrics page — accepts "track" and "artist" from form and calls get_lyrics from scraper
 @app.route('/lyrics', methods=["GET", "POST"])
 def lyrics():
     lyrics_result = ""
     if request.method == "POST":
         track = request.form.get("track")
         artist = request.form.get("artist")
-        lyrics_result = fetch_lyrics(track, artist)
+        if not track:
+            lyrics_result = "Please enter the track name."
+        else:
+            query = f"{artist} - {track}" if artist else track
+            lyrics_result = get_lyrics(query)
     return render_template("lyrics.html", lyrics=lyrics_result)
 
 # Chatroom page
@@ -95,7 +111,7 @@ def ai_chat():
 # Upload image or voice to chatroom
 @app.route('/upload', methods=["POST"])
 def upload():
-    file = request.files['file']
+    file = request.files.get('file')
     if file:
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
