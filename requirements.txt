@@ -13,3 +13,4 @@ yt-dlp
 werkzeug
 python-socketio
 python-engineio
+psycopg2-binary
