@@ -2,25 +2,21 @@ import os
 from yt_dlp import YoutubeDL
 import requests
 
-COOKIES_FILE = 'cookies.txt'  # Your cookies file in Netscape format
+COOKIES_FILE = 'cookies.txt'  # your cookies file if needed
 
-# YT-DLP options with cookie support
+# YT-DLP options
 YDL_OPTS = {
     'format': 'best',
-    'outtmpl': 'downloads/%(title)s.%(ext)s',
+    'outtmpl': 'static/videos/%(title)s.%(ext)s',
     'nocheckcertificate': True,
     'quiet': True,
     'no_warnings': True,
     'cookiefile': COOKIES_FILE,
-    'postprocessors': [{
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'mp3',
-        'preferredquality': '192',
-    }],
+    'merge_output_format': 'mp4',
 }
 
 def search_songs(query, max_results=10):
-    """Search YouTube for videos matching query and return basic info list"""
+    """Search YouTube for videos matching query"""
     search_query = f"ytsearch{max_results}:{query}"
     with YoutubeDL({'quiet': True, 'cookiefile': COOKIES_FILE}) as ydl:
         try:
@@ -63,7 +59,6 @@ def get_audio(url):
     with YoutubeDL(opts) as ydl:
         try:
             info = ydl.extract_info(url, download=False)
-            # Choose best audio format info
             audio_formats = [f for f in info.get('formats', []) if f.get('acodec') != 'none']
             best_audio = max(audio_formats, key=lambda f: f.get('abr', 0)) if audio_formats else None
             return {
@@ -79,68 +74,44 @@ def get_audio(url):
 
 def download_video(url):
     """Download video and return local path"""
-    os.makedirs('downloads', exist_ok=True)
+    os.makedirs('static/videos', exist_ok=True)
     ydl_opts = {
         'format': 'bestvideo+bestaudio/best',
-        'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'outtmpl': 'static/videos/%(title)s.%(ext)s',
         'cookiefile': COOKIES_FILE,
         'nocheckcertificate': True,
         'quiet': True,
         'no_warnings': True,
-        # Add postprocessors here if you want to merge audio+video
+        'merge_output_format': 'mp4',
     }
     with YoutubeDL(ydl_opts) as ydl:
         try:
             info = ydl.extract_info(url, download=True)
             filepath = ydl.prepare_filename(info)
-            return filepath
+            return os.path.basename(filepath)
         except Exception as e:
             print(f"Error downloading video: {e}")
             return None
 
 def get_lyrics(song_query):
     """
-    Get lyrics from free API: lyrics.ovh or fallback to Genius scraping
-    song_query: 'artist - song title' or just 'song title'
+    Get lyrics using the Michiko API
     """
-    # Try lyrics.ovh first
     try:
-        artist, song = None, None
-        if " - " in song_query:
-            artist, song = song_query.split(" - ", 1)
-        else:
-            song = song_query
-
-        if artist:
-            url = f"https://api.lyrics.ovh/v1/{artist.strip()}/{song.strip()}"
-        else:
-            url = f"https://api.lyrics.ovh/v1//{song.strip()}"
-
-        response = requests.get(url, timeout=5)
+        response = requests.get(f"https://ap-c4yl.onrender.com/api/lyrics?query={song_query}")
         if response.status_code == 200:
             data = response.json()
-            return data.get("lyrics", "Lyrics not found.")
-    except Exception as e:
-        print(f"Error fetching lyrics.ovh API: {e}")
-
-    # Fallback: Simple Genius scraping (basic)
-    try:
-        import lyricsgenius
-        GENIUS_ACCESS_TOKEN = os.getenv("GENIUS_ACCESS_TOKEN")
-        if not GENIUS_ACCESS_TOKEN:
-            return "No Genius API token set."
-        genius = lyricsgenius.Genius(GENIUS_ACCESS_TOKEN, skip_non_songs=True, excluded_terms=["(Remix)", "(Live)"], remove_section_headers=True)
-        song = genius.search_song(song_query)
-        if song:
-            return song.lyrics
+            if data.get("status") and data.get("lyrics"):
+                return f"🎶 {data.get('title')} by {data.get('artist')}\n\n{data.get('lyrics')}"
+            else:
+                return "❌ No lyrics found for this track."
         else:
-            return "Lyrics not found."
+            return "❌ Failed to fetch lyrics."
     except Exception as e:
-        print(f"Error fetching lyrics from Genius: {e}")
-        return "Lyrics not found."
+        print(f"Error fetching lyrics: {e}")
+        return "❌ Error fetching lyrics."
 
 if __name__ == "__main__":
-    # quick test
     print("Search results for 'Imagine Dragons':")
     results = search_songs("Imagine Dragons")
     for r in results[:3]:
