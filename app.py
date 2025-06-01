@@ -27,7 +27,7 @@ for folder in [UPLOAD_FOLDER, VIDEOS_FOLDER, AUDIOS_FOLDER]:
 def home():
     video_files = os.listdir(VIDEOS_FOLDER)
     audio_files = os.listdir(AUDIOS_FOLDER)
-    return render_template('home.html', videos=video_files, audios=audio_files)
+    return render_template('index.html', videos=video_files, audios=audio_files)
 
 # Video/Audio search page
 @app.route('/search')
