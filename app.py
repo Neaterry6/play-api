@@ -1,20 +1,26 @@
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
-import requests
-from urllib.parse import quote as url_quote  # ✅ Fixed Werkzeug Import Issue
-from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
 from dotenv import load_dotenv
+from urllib.parse import quote as url_quote  # Werkzeug-safe URL quoting
 import os
 
-# ✅ Load environment variables
+# Local module imports
+from scraper import search_songs, get_video, get_audio, get_lyrics, download_video
+
+# Load environment variables
 load_dotenv()
 
+# Flask App Setup
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
 app.config["SECRET_KEY"] = os.getenv("SESSION_SECRET")
+
+# Database & SocketIO
 db = SQLAlchemy(app)
-socketio = SocketIO(app, async_mode="eventlet")  # ✅ Ensuring Real-Time Chat Compatibility
+socketio = SocketIO(app, async_mode="eventlet")
+
+# ------------------- Routes ----------------------
 
 # 🏠 Home Page
 @app.route('/')
@@ -27,68 +33,65 @@ def index():
 def about():
     return render_template("about.html")
 
-# 🔍 Search Page
-@app.route('/search', methods=["POST"])
+# 🔍 Search Songs Page
+@app.route('/search', methods=["GET", "POST"])
 def search():
-    query = request.form.get("query")
-    if not query:
-        return render_template("search.html", error="Please enter a search term.")
-    
-    results = search_songs(query)
-    return render_template("search.html", results=results)
+    if request.method == "POST":
+        query = request.form.get("query")
+        if not query:
+            return render_template("search.html", error="Please enter a search term.")
+        results = search_songs(query)
+        return render_template("search.html", results=results)
+    return render_template("search.html")
 
-# 🎵 Play Audio Page (With Effects & Speed Control)
+# 🎵 Play Audio Page
 @app.route('/play/audio')
 def play_audio():
     query = request.args.get("query")
     if not query:
-        return render_template("play_audio.html", error="No audio found.")
-    
+        return render_template("paudio.html", error="No audio found.")
     audio_data = get_audio(query)
-    return render_template("play_audio.html", audio=audio_data)
+    return render_template("audio.html", audio=audio_data)
 
-# 🎥 Play Video Page (With Speed Control)
+# 🎥 Play Video Page
 @app.route('/play/video')
 def play_video():
     query = request.args.get("query")
     if not query:
-        return render_template("play_video.html", error="No video found.")
-    
+        return render_template("video.html", error="No video found.")
     video_data = get_video(query)
-    return render_template("play_video.html", video=video_data)
+    return render_template("video.html", video=video_data)
 
 # 📜 Lyrics Page
 @app.route('/lyrics')
 def lyrics():
     artist = request.args.get("artist")
     song = request.args.get("song")
-
     if not artist or not song:
-        return render_template("lyrics.html", error="Please enter both artist name and song title.")
-
+        return render_template("lyrics.html", error="Please enter both artist and song.")
     lyrics_data = get_lyrics(f"{artist} - {song}")
     return render_template("lyrics.html", lyrics=lyrics_data)
 
-# ⬇️ Video Downloader Route
-@app.route('/download', methods=["POST"])
+# ⬇️ Video Downloader
+@app.route('/download', methods=["GET", "POST"])
 def download():
-    video_url = request.form.get("video_url")
-    if not video_url:
-        return render_template("download.html", error="Invalid video URL.")
-    
-    download_link = download_video(video_url)
-    return render_template("download.html", link=download_link)
+    if request.method == "POST":
+        video_url = request.form.get("video_url")
+        if not video_url:
+            return render_template("download.html", error="Please enter a video URL.")
+        download_link = download_video(video_url)
+        return render_template("download.html", link=download_link)
+    return render_template("download.html")
 
 # ❤️ Favorites Page
 @app.route('/favorites', methods=["GET", "POST"])
 def favorites():
-    from models import Favorite
+    from models import Favorite  # local import to avoid circular dependency
 
     if request.method == "POST":
         user_id = request.form.get("user_id")
         song_title = request.form.get("song_title")
         song_url = request.form.get("song_url")
-
         if user_id and song_title and song_url:
             favorite = Favorite(user_id=user_id, song_title=song_title, song_url=song_url)
             db.session.add(favorite)
@@ -97,7 +100,7 @@ def favorites():
     user_favorites = Favorite.query.all()
     return render_template("favorites.html", favorites=user_favorites)
 
-# 💬 Real-Time Chatroom Functionality
+# 💬 Real-Time Chatroom
 users = {}
 
 @socketio.on("join")
@@ -114,6 +117,7 @@ def handle_disconnect():
     nickname = users.pop(request.sid, "Unknown")
     socketio.emit("message", {"nickname": "System", "text": f"{nickname} left the chat."})
 
-# 🚀 Run Flask App
+# ----------------- Run Flask App -----------------
+
 if __name__ == '__main__':
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
