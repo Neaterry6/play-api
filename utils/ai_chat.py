@@ -10,4 +10,4 @@ def get_ai_reply(user_message):
         else:
             return "Hmm… I couldn't fetch a reply right now."
     except Exception as e:
-        return f"Error: {str(e)}
+        return f"Error: {str(e)}"
