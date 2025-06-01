@@ -1,10 +1,10 @@
 import os
-from yt_dlp import YoutubeDL
 import requests
+from yt_dlp import YoutubeDL
 
-COOKIES_FILE = 'cookies.txt'  # your cookies file if needed
+COOKIES_FILE = 'cookies.txt'  # Your YouTube cookies file (if needed)
 
-# YT-DLP options
+# YT-DLP Options for Searching & Downloading
 YDL_OPTS = {
     'format': 'best',
     'outtmpl': 'static/videos/%(title)s.%(ext)s',
@@ -95,14 +95,16 @@ def download_video(url):
 
 def get_lyrics(song_query):
     """
-    Get lyrics using the Michiko API
+    Get lyrics using the Lyrics.ovh API
     """
     try:
-        response = requests.get(f"https://ap-c4yl.onrender.com/api/lyrics?query={song_query}")
+        artist, title = song_query.split(" - ")  # Extract artist & song title
+        response = requests.get(f"https://api.lyrics.ovh/v1/{artist}/{title}")
+        
         if response.status_code == 200:
             data = response.json()
-            if data.get("status") and data.get("lyrics"):
-                return f"🎶 {data.get('title')} by {data.get('artist')}\n\n{data.get('lyrics')}"
+            if data.get("lyrics"):
+                return f"🎶 {title} by {artist}\n\n{data.get('lyrics')}"
             else:
                 return "❌ No lyrics found for this track."
         else:
