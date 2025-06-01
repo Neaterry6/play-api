@@ -10,3 +10,6 @@ pytube==15.0.0
 SQLAlchemy==2.0.19
 gunicorn==20.1.0
 yt-dlp
+werkzeug
+python-socketio
+python-engineio
